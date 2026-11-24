@@ -3,8 +3,9 @@ import type { Change } from '@/data/changes'
 import { cn } from '@/lib/utils'
 
 /**
- * "What's changed" panel. A full-height column beside the page (never on top of it). Hovering or
- * clicking a row expands it and outlines the matching element on the page.
+ * "What's changed" panel. A full-height column beside the page (never on top of it). Every item shows
+ * its PRD number, title and description. Hovering or clicking an item highlights it and outlines the
+ * matching element on the page.
  */
 export function ChangesPanel({ changes }: { changes: Change[] }) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -13,31 +14,27 @@ export function ChangesPanel({ changes }: { changes: Change[] }) {
   // Styled like the left nav: grey column, full height, thin border. Opened and closed from the header icon.
   return (
     <aside
-      className="flex w-[260px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-[#e5e5e5] bg-[#fafafa] px-2 py-[18px]"
+      className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-[#e5e5e5] bg-[#fafafa] py-[18px]"
       aria-label="What's changed"
     >
-      <div className="flex h-[34px] items-center pl-2 text-[14px] font-semibold">What's changed · {changes.length}</div>
-      <ul className="flex flex-col gap-[2px]" onMouseLeave={() => setActiveId(null)}>
+      <div className="flex h-[34px] items-center px-4 text-[14px] font-semibold">What's changed · {changes.length}</div>
+      <ul className="mt-2 flex flex-col border-t border-[#e5e5e5]" onMouseLeave={() => setActiveId(null)}>
         {changes.map((c) => {
           const on = c.id === activeId
           return (
-            <li key={c.id}>
+            <li key={c.id} className="border-b border-[#e5e5e5]">
               <button
                 onMouseEnter={() => setActiveId(c.id)}
                 onFocus={() => setActiveId(c.id)}
                 onClick={() => setActiveId(c.id)}
-                aria-expanded={on}
-                className={cn('flex w-full flex-col gap-1 rounded-md px-[10px] py-[7px] text-left', on && 'bg-[#efefef]')}
+                aria-pressed={on}
+                className={cn('grid w-full grid-cols-[48px_1fr] gap-x-2 px-4 py-3 text-left transition-colors', on ? 'bg-[#efefef]' : 'hover:bg-[#f4f4f4]')}
               >
-                <span className="flex gap-2.5 text-[13px]">
-                  <span className="min-w-[40px] text-[#a3a3a3] tabular-nums">{c.code}</span>
-                  <span className="text-[#0a0a0a]">{c.title}</span>
+                <span className="pt-px text-[12px] whitespace-nowrap text-[#a3a3a3] tabular-nums">{c.code}</span>
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[13px] font-medium text-[#0a0a0a]">{c.title}</span>
+                  <span className="text-[12px] leading-[1.5] text-[#737373]">{c.detail}</span>
                 </span>
-                {on && (
-                  <span className="text-[12px] leading-[1.45]">
-                    <span className="font-medium text-[#0a0a0a]">{c.kind}.</span> <span className="text-[#737373]">{c.detail}</span>
-                  </span>
-                )}
               </button>
             </li>
           )
