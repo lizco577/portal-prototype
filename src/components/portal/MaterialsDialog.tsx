@@ -70,7 +70,7 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="flex max-h-[min(640px,calc(100vh-48px))] w-[560px] max-w-[calc(100vw-32px)] flex-col gap-0 overflow-hidden rounded-[12px] p-0 sm:max-w-[560px]">
+      <DialogContent aria-describedby={undefined} className="flex h-[min(600px,calc(100vh-48px))] w-[560px] max-w-[calc(100vw-32px)] flex-col gap-0 overflow-hidden rounded-[12px] p-0 sm:max-w-[560px]">
         <div className="flex flex-col gap-[3px] px-[22px] pt-5 pb-4 pr-12">
           <DialogTitle className="text-[16px] font-semibold">Materials</DialogTitle>
         </div>
