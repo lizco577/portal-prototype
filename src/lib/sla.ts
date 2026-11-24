@@ -1,12 +1,11 @@
-// SLA buckets agreed in review:
-// overdue = dark red + white text, under 1h = red, 1 to 3h = yellow, over 3h = green.
+// SLA states (Nov 24): Overdue (dark red), Due soon = under 1 hour (light red), Due in = 1 hour or more (grey).
 export type SlaState = 'overdue' | 'critical' | 'warning' | 'ok' | 'none'
 
 export const SLA_ORDER: Record<SlaState, number> = {
   overdue: 0,
   critical: 1,
   warning: 2,
-  ok: 3,
+  ok: 2, // shown the same as warning: "Due in"
   none: 4,
 }
 
