@@ -22,6 +22,7 @@ import { AppShell } from '@/components/portal/AppShell'
 import { Avatar } from '@/components/portal/assignee'
 import { ChoiceSelect } from '@/components/portal/ChoiceSelect'
 import { MaterialsDialog } from '@/components/portal/MaterialsDialog'
+import { WHATS_CHANGED_OPEN } from '@/components/portal/ChangesPanel'
 import { SendForReviewDialog } from '@/components/portal/SendForReviewDialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
@@ -64,6 +65,17 @@ export default function DamageLabeling() {
   )
   const updateLabel = (labelId: string, patch: Partial<Label>) =>
     updatePhoto((p) => ({ ...p, labels: p.labels.map((l) => (l.id === labelId ? { ...l, ...patch } : l)) }))
+
+  // "What's changed" rows can open this page's modals.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const what = (e as CustomEvent<string>).detail
+      if (what === 'materials') setMaterialsOpen(true)
+      if (what === 'send-for-review') setReviewOpen(true)
+    }
+    window.addEventListener(WHATS_CHANGED_OPEN, onOpen)
+    return () => window.removeEventListener(WHATS_CHANGED_OPEN, onOpen)
+  }, [])
 
   // Esc stops drawing. Enter closes the shape you're drawing.
   useEffect(() => {

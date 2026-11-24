@@ -8,6 +8,11 @@ export type Change = {
   kind: 'New' | 'Changed'
   detail: string
   target: string
+  /**
+   * What clicking the row opens: 'click' presses the outlined element (a menu or panel button);
+   * any other value asks the page to open that modal (e.g. 'materials').
+   */
+  opens?: string
 }
 
 export const TASK_LIST_CHANGES: Change[] = [
@@ -34,6 +39,7 @@ export const TASK_LIST_CHANGES: Change[] = [
     kind: 'Changed',
     detail: 'Counts per task type live in this dropdown instead of a Total Tasks card.',
     target: 'type-dropdown',
+    opens: 'click',
   },
   {
     id: 'd11-star',
@@ -50,6 +56,7 @@ export const TASK_LIST_CHANGES: Change[] = [
     kind: 'New',
     detail: 'Leads mark a whole customer as priority. All its tasks get a star.',
     target: 'priority-settings',
+    opens: 'click',
   },
   {
     id: 'd7',
@@ -101,6 +108,7 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     kind: 'New',
     detail: 'Send the task to a teammate with a note. Their reply shows at the top of the labels panel.',
     target: 'send-for-review',
+    opens: 'send-for-review',
   },
   {
     id: 'l1',
@@ -109,6 +117,7 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     kind: 'Changed',
     detail: 'Materials open in a modal where you can add, rename, delete, search and sort them.',
     target: 'manage-materials',
+    opens: 'materials',
   },
 ]
 

@@ -27,7 +27,10 @@ export function ChangesPanel({ changes }: { changes: Change[] }) {
               <button
                 onMouseEnter={() => setActiveId(c.id)}
                 onFocus={() => setActiveId(c.id)}
-                onClick={() => setActiveId(c.id)}
+                onClick={() => {
+                  setActiveId(c.id)
+                  openFor(c)
+                }}
                 aria-pressed={on}
                 className={cn('grid w-full grid-cols-[48px_1fr] gap-x-2 px-4 py-3 text-left transition-colors', on ? 'bg-[#efefef]' : 'hover:bg-[#f4f4f4]')}
               >
@@ -45,6 +48,22 @@ export function ChangesPanel({ changes }: { changes: Change[] }) {
     </aside>
   )
 }
+
+/** Clicking a row opens the menu or modal it describes, if it has one. */
+function openFor(c: Change) {
+  if (!c.opens) return
+  if (c.opens === 'click') {
+    // Menus open on pointer down, panels on click: send both, like a real press.
+    const el = document.querySelector<HTMLElement>(`[data-change="${c.target}"]`)
+    el?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    el?.click()
+    return
+  }
+  window.dispatchEvent(new CustomEvent(WHATS_CHANGED_OPEN, { detail: c.opens }))
+}
+
+/** Pages listen for this to open their own modals from a What's changed row. */
+export const WHATS_CHANGED_OPEN = 'whats-changed:open'
 
 /** Blue 1.5px outline around the matching element. Nothing is drawn if the element isn't on screen. */
 function Outline({ target }: { target: string }) {
