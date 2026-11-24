@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { TaskTypeChip } from '@/components/portal/chips'
 import { TASK_TYPES, type TaskType } from '@/data/tasks'
 import { cn } from '@/lib/utils'
 
@@ -27,27 +28,14 @@ export function TaskTypeMenuItems({
       <DropdownMenuSeparator />
       {TASK_TYPES.map((t) => (
         <Item key={t} active={selected === t} onSelect={() => onSelect(t)}>
-          <TypeDot type={t} />
-          <span className="flex-1">
-            {t} <span className="text-[#a3a3a3] tabular-nums">· {counts.get(t) ?? 0}</span>
+          <span className="flex flex-1 items-center gap-2">
+            <TaskTypeChip type={t} />
+            <span className="text-[#a3a3a3] tabular-nums">· {counts.get(t) ?? 0}</span>
           </span>
         </Item>
       ))}
     </>
   )
-}
-
-// Brighter shade of each chip's colour, so the dots are easy to tell apart.
-const DOT: Record<TaskType, string> = {
-  'Damage Labeling': '#f97316',
-  ImageQA: '#3b82f6',
-  Modelling: '#a855f7',
-  Remodel: '#eab308',
-  QA: '#22c55e',
-}
-
-export function TypeDot({ type }: { type: TaskType }) {
-  return <span className="size-2 shrink-0 rounded-full" style={{ background: DOT[type] }} aria-hidden />
 }
 
 function Item({ active, onSelect, children }: { active: boolean; onSelect: () => void; children: React.ReactNode }) {

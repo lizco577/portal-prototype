@@ -32,7 +32,7 @@ import { AssigneeCell } from '@/components/portal/assignee'
 import { SlaPill, TaskStatusChip, TaskTypeChip } from '@/components/portal/chips'
 import { ColumnFilter, FilterList } from '@/components/portal/FilterPicker'
 import { PriorityPanel } from '@/components/portal/PriorityPanel'
-import { TaskTypeMenuItems, TypeDot } from '@/components/portal/TaskTypeMenu'
+import { TaskTypeMenuItems } from '@/components/portal/TaskTypeMenu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -291,7 +291,6 @@ export default function TaskQueue() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <ToolbarButton active={!!typeSel}>
-                {typeSel && <TypeDot type={typeSel} />}
                 {typeSel ? `${typeSel} · ${facets.type.get(typeSel) ?? 0}` : `All task types · ${typeTotal}`}
                 <ChevronDown className="size-3.5" />
               </ToolbarButton>
