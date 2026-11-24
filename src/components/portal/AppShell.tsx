@@ -12,6 +12,7 @@ import {
   ListTodo,
   Moon,
   PanelLeft,
+  PanelRight,
   Search,
   Workflow,
   X,
@@ -42,7 +43,8 @@ export function AppShell({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [tz, setTz] = useState('MST')
-  const { toast } = useStore()
+  const { toast, changesOpen, setChangesOpen } = useStore()
+  const hasChanges = !!changes && changes.length > 0
   return (
     <div className="flex h-screen min-w-[1100px] bg-white text-[#0a0a0a]">
       {!collapsed && <Sidebar />}
@@ -124,13 +126,31 @@ export function AppShell({
               Dark mode isn't part of this prototype.
             </PopoverContent>
           </Popover>
+          {hasChanges && (
+            <>
+              <div className="h-5 w-px bg-[#e5e5e5]" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setChangesOpen(!changesOpen)}
+                    className="rounded p-0.5 hover:bg-black/5"
+                    aria-label={changesOpen ? "Hide What's changed" : "Show What's changed"}
+                    aria-pressed={changesOpen}
+                  >
+                    <PanelRight className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {changesOpen ? 'Hide' : 'Show'} What's changed · {changes!.length}
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
         </header>
-        {/* The What's changed panel sits beside the page, so the page shrinks instead of being covered */}
-        <div className="flex min-h-0 flex-1">
-          <div className="min-w-0 flex-1 overflow-auto">{children}</div>
-          {changes && changes.length > 0 && <ChangesPanel changes={changes} />}
-        </div>
+        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       </main>
+      {/* What's changed: full-height column on the right, like the left nav. The page shrinks instead of being covered. */}
+      {hasChanges && changesOpen && <ChangesPanel changes={changes!} />}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>
       )}
