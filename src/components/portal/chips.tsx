@@ -1,13 +1,10 @@
 import {
-  AlarmClock,
   Box,
-  CircleAlert,
   CircleCheck,
   CircleDashed,
   Clock,
   Eye,
   FileCheck,
-  Hourglass,
   Image,
   RefreshCw,
   ScanLine,
@@ -62,27 +59,25 @@ export function TaskStatusChip({ status }: { status: TaskStatus }) {
   )
 }
 
-// SLA pill, style B from "SLA warning approaches", extended to four buckets.
-// Every bucket has a word and an icon as well as a colour, so it never relies on colour alone.
-export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; word: string; hint: string; icon: LucideIcon }> = {
-  overdue: { bg: '#b91c1c', text: '#ffffff', word: 'Overdue', hint: 'Past the SLA due time', icon: CircleAlert },
-  critical: { bg: 'rgba(220,38,38,0.16)', text: '#b91c1c', word: 'Due soon', hint: 'Under 1 hour left', icon: AlarmClock },
-  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Due in', hint: '1 to 3 hours left', icon: Hourglass },
-  ok: { bg: 'rgba(22,163,74,0.14)', text: '#15803d', word: 'On track', hint: 'More than 3 hours left', icon: Clock },
+// SLA pill, style B from "SLA warning approaches". No icons: the word carries the meaning.
+// Only Overdue and Due in are coloured; Due soon and On track use the neutral grey pill.
+export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; word: string; hint: string }> = {
+  overdue: { bg: '#b91c1c', text: '#ffffff', word: 'Overdue', hint: 'Past the SLA due time' },
+  critical: { bg: '#f5f5f5', text: '#262626', word: 'Due soon', hint: 'Under 1 hour left' },
+  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Due in', hint: '1 to 3 hours left' },
+  ok: { bg: '#f5f5f5', text: '#262626', word: 'On track', hint: 'More than 3 hours left' },
 }
 
 export function SlaPill({ mins }: { mins: number | null }) {
   const state = slaState(mins)
   if (state === 'none') return <span className="text-[12.5px] text-[#a3a3a3]">--</span>
   const s = SLA_STYLE[state]
-  const Icon = s.icon
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-[5px] rounded-full px-2 py-[3px] text-[12px] whitespace-nowrap tabular-nums"
+      className="inline-flex shrink-0 items-center gap-[5px] rounded-full px-2.5 py-[3px] text-[12px] whitespace-nowrap tabular-nums"
       style={{ background: s.bg, color: s.text }}
       title={`${s.hint}${mins != null && mins < 0 ? ` by ${formatDuration(mins)}` : ''}`}
     >
-      <Icon className="size-3" strokeWidth={2.25} />
       <span className="font-semibold">{s.word}</span>
       <span className="opacity-60">·</span>
       <span className="font-medium">{formatDuration(mins!)}</span>
