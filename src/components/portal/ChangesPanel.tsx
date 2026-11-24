@@ -14,11 +14,12 @@ export function ChangesPanel({ changes }: { changes: Change[] }) {
   // Styled like the left nav: grey column, full height, thin border. Opened and closed from the header icon.
   return (
     <aside
-      className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-[#e5e5e5] bg-[#fafafa] py-[18px]"
+      className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-[#e5e5e5] bg-[#fafafa] pb-[18px]"
       aria-label="What's changed"
     >
-      <div className="flex h-[34px] items-center px-4 text-[14px] font-semibold">What's changed · {changes.length}</div>
-      <ul className="mt-2 flex flex-col border-t border-[#e5e5e5]" onMouseLeave={() => setActiveId(null)}>
+      {/* Same 64px height as the page header, so the two bottom lines meet */}
+      <div className="flex h-16 shrink-0 items-center border-b border-[#e5e5e5] px-4 text-[14px] font-semibold">What's changed · {changes.length}</div>
+      <ul className="flex flex-col" onMouseLeave={() => setActiveId(null)}>
         {changes.map((c) => {
           const on = c.id === activeId
           return (
