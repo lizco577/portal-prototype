@@ -62,6 +62,7 @@ import {
   type Filters,
 } from '@/lib/filters'
 import { minutesLeft, SLA_ORDER, slaState } from '@/lib/sla'
+import { TASK_LIST_CHANGES } from '@/data/changes'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -156,6 +157,7 @@ export default function TaskQueue() {
   const safePage = Math.min(page, pages - 1)
   const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize)
   const show = (k: ShowKey) => !hidden.has(k)
+  const firstClaimId = pageRows.find((t) => t.status !== 'Done' && t.claimedById == null)?.id
   const filterProps = (col: ColKey) => ({
     col,
     options: options[col],
@@ -201,10 +203,10 @@ export default function TaskQueue() {
   }
 
   return (
-    <AppShell crumbs={[{ label: 'Tasks' }]} search={{ value: filters.query, onChange: (q) => update((f) => ({ ...f, query: q })) }}>
+    <AppShell crumbs={[{ label: 'Tasks' }]} changes={TASK_LIST_CHANGES} search={{ value: filters.query, onChange: (q) => update((f) => ({ ...f, query: q })) }}>
       <div className="flex flex-col gap-4 px-[17px] pt-4 pb-6">
         {/* Summary cards: click to filter, click again to clear */}
-        <div className="grid grid-cols-4 gap-[18px]">
+        <div className="grid grid-cols-4 gap-[18px]" data-change="summary-cards">
           {CARDS.map((c) => (
             <SummaryCard
               key={c.key}
@@ -290,7 +292,7 @@ export default function TaskQueue() {
           {/* Task type dropdown: the one task type filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <ToolbarButton active={!!typeSel}>
+              <ToolbarButton active={!!typeSel} data-change="type-dropdown">
                 {typeSel ? `${typeSel} · ${facets.type.get(typeSel) ?? 0}` : `All task types · ${typeTotal}`}
                 <ChevronDown className="size-3.5" />
               </ToolbarButton>
@@ -358,9 +360,9 @@ export default function TaskQueue() {
             <table className="w-full min-w-[1100px] border-collapse text-[12.5px] text-[#262626]">
               <thead>
                 <tr className="h-11 border-b border-[#e5e5e5] bg-[#fafafa] text-left text-[#0a0a0a]">
-                  <th className="w-[40px] pl-[14px]" aria-label="Priority" />
+                  <th className="w-[40px] pl-[14px]" aria-label="Priority" data-change="star-header" />
                   {show('sla') && (
-                    <Th className="w-[168px] pl-1">
+                    <Th className="w-[168px] pl-1" dataChange="sla-header">
                       <button className="flex items-center gap-1.5" onClick={() => setSlaAsc((v) => !v)} title="Sort by time left">
                         SLA {slaAsc ? <ArrowUp className="size-[13px]" /> : <ArrowDown className="size-[13px]" />}
                       </button>
@@ -408,7 +410,7 @@ export default function TaskQueue() {
                     </Th>
                   )}
                   {show('assignee') && (
-                    <Th className="w-[140px]" filter={<ColumnFilter {...filterProps('assignee')} />}>
+                    <Th className="w-[140px]" dataChange="assignee-header" filter={<ColumnFilter {...filterProps('assignee')} />}>
                       Assigned to
                     </Th>
                   )}
@@ -419,6 +421,7 @@ export default function TaskQueue() {
                 {pageRows.map((t) => (
                   <Row
                     key={t.id}
+                    firstClaim={t.id === firstClaimId}
                     task={t}
                     now={now}
                     show={show}
@@ -493,6 +496,7 @@ export default function TaskQueue() {
 }
 
 function Row({
+  firstClaim,
   task: t,
   now,
   show,
@@ -505,6 +509,7 @@ function Row({
   onUnclaim,
   onCopy,
 }: {
+  firstClaim: boolean
   task: Task
   now: number
   show: (k: ShowKey) => boolean
@@ -570,6 +575,7 @@ function Row({
           {t.status !== 'Done' && t.claimedById == null && (
             <button
               onClick={onClaim}
+              data-change={firstClaim ? 'claim-button' : undefined}
               onDoubleClick={(e) => e.stopPropagation()}
               className="flex h-[26px] items-center gap-1.5 rounded-[7px] border border-[#e5e5e5] bg-white px-2.5 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
             >
@@ -736,9 +742,19 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   )
 }
 
-function Th({ children, className, filter }: { children?: React.ReactNode; className?: string; filter?: React.ReactNode }) {
+function Th({
+  children,
+  className,
+  filter,
+  dataChange,
+}: {
+  children?: React.ReactNode
+  className?: string
+  filter?: React.ReactNode
+  dataChange?: string
+}) {
   return (
-    <th className={cn('px-[14px] font-medium whitespace-nowrap', className)}>
+    <th className={cn('px-[14px] font-medium whitespace-nowrap', className)} data-change={dataChange}>
       {filter ? (
         <span className="flex items-center justify-between gap-2">
           {children}

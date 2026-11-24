@@ -42,6 +42,10 @@ type Store = {
 
   toast: string | null
   showToast: (msg: string) => void
+
+  // "What's changed" panel: open or collapsed, kept across pages
+  changesOpen: boolean
+  setChangesOpen: (open: boolean) => void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -56,6 +60,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [materials, setMaterialsState] = useState<Material[]>(INITIAL_MATERIALS)
   const [materialSort, setMaterialSort] = useState<MaterialSort>('az')
   const [toast, setToast] = useState<string | null>(null)
+  const [changesOpen, setChangesOpen] = useState(true)
   const toastTimer = useRef<number | undefined>(undefined)
 
   // Keep SLA countdowns live.
@@ -124,8 +129,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sortedMaterials,
       toast,
       showToast,
+      changesOpen,
+      setChangesOpen,
     }),
-    [now, tasks, updateTask, priorityOrgs, isPriority, photos, reviews, sendForReview, materials, materialSort, sortedMaterials, toast, showToast],
+    [now, tasks, updateTask, priorityOrgs, isPriority, photos, reviews, sendForReview, materials, materialSort, sortedMaterials, toast, showToast, changesOpen],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
 import { currentUserId, personById } from '@/data/people'
+import { DAMAGE_LABELING_CHANGES } from '@/data/changes'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -166,6 +167,7 @@ export default function DamageLabeling() {
 
   return (
     <AppShell
+      changes={DAMAGE_LABELING_CHANGES}
       crumbs={[
         { label: 'Tasks', to: '/' },
         { label: task.roomId, to: '/' },
@@ -202,7 +204,7 @@ export default function DamageLabeling() {
             </div>
 
             {/* Hint above the photo */}
-            <div className="flex items-center gap-2 text-[12px] text-[#525252]" data-testid="draw-hint">
+            <div className="flex items-center gap-2 self-start text-[12px] text-[#525252]" data-testid="draw-hint" data-change="draw-hint">
               <span className={cn('size-1.5 rounded-full', mode === 'draw' ? 'bg-[#16a34a]' : 'bg-[#a3a3a3]')} />
               {mode === 'draw' ? (
                 'Click on the photo to draw · Esc to stop drawing'
@@ -300,7 +302,7 @@ export default function DamageLabeling() {
             </div>
 
             {/* Under the photo */}
-            <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex items-center gap-2 pt-0.5" data-change="photo-buttons">
               <button
                 onClick={nextPhoto}
                 className={cn(
@@ -338,7 +340,7 @@ export default function DamageLabeling() {
               {doneCount} of {photos.length} done
             </span>
           </div>
-          <div className="flex flex-wrap gap-[14px]">
+          <div className="flex flex-wrap gap-[14px] self-start" data-change="photo-strip">
             {photos.map((p, i) => (
               <button
                 key={p.id}
@@ -427,6 +429,7 @@ export default function DamageLabeling() {
                               onChange={(v) => updateLabel(l.id, { material: v })}
                               footer={(close) => (
                                 <button
+                                  data-change="manage-materials"
                                   onClick={() => {
                                     close()
                                     setMaterialsOpen(true)
@@ -449,6 +452,7 @@ export default function DamageLabeling() {
                             </div>
                           ) : (
                             <button
+                              data-change="send-for-review"
                               onClick={() => setReviewOpen(true)}
                               className="flex items-center gap-1.5 self-start text-[12px] text-[#525252] underline-offset-2 hover:text-[#0a0a0a] hover:underline"
                             >

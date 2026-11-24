@@ -12,6 +12,7 @@ export function PriorityPanel({ tasks }: { tasks: Task[] }) {
     <Popover>
       <PopoverTrigger asChild>
         <button
+          data-change="priority-settings"
           className={cn(
             'flex h-[35px] items-center gap-[7px] rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] hover:bg-[#fafafa]',
             priorityOrgs.length ? 'border-[#a3a3a3]' : 'border-[#e5e5e5]',

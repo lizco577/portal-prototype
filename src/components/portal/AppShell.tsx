@@ -19,6 +19,8 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChangesPanel } from '@/components/portal/ChangesPanel'
+import type { Change } from '@/data/changes'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +29,17 @@ type SearchBinding = { value: string; onChange: (v: string) => void }
 
 const TIMEZONES = ['MST', 'PST', 'CST', 'EST', 'UTC']
 
-export function AppShell({ crumbs, children, search }: { crumbs: Crumb[]; children: ReactNode; search?: SearchBinding }) {
+export function AppShell({
+  crumbs,
+  children,
+  search,
+  changes,
+}: {
+  crumbs: Crumb[]
+  children: ReactNode
+  search?: SearchBinding
+  changes?: Change[]
+}) {
   const [collapsed, setCollapsed] = useState(false)
   const [tz, setTz] = useState('MST')
   const { toast } = useStore()
@@ -113,7 +125,11 @@ export function AppShell({ crumbs, children, search }: { crumbs: Crumb[]; childr
             </PopoverContent>
           </Popover>
         </header>
-        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+        {/* The What's changed panel sits beside the page, so the page shrinks instead of being covered */}
+        <div className="flex min-h-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-auto">{children}</div>
+          {changes && changes.length > 0 && <ChangesPanel changes={changes} />}
+        </div>
       </main>
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>

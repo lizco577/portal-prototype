@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { buildIqaPhotos, type IqaPhoto } from '@/data/labeling'
 import { currentUserId } from '@/data/people'
+import { IMAGE_QA_CHANGES } from '@/data/changes'
 import { useStore } from '@/lib/store'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ export default function ImageQA() {
     )
 
   const photos = buildIqaPhotos(task.id)
+  const firstAutoId = photos.find((p) => p.autoPassed)?.id
   const camera = photos.filter((p) => p.kind === 'camera')
   const overview = photos.filter((p) => p.kind === 'overview')
   const damage = photos.filter((p) => p.kind === 'damage')
@@ -44,6 +46,7 @@ export default function ImageQA() {
 
   return (
     <AppShell
+      changes={IMAGE_QA_CHANGES}
       crumbs={[
         { label: 'Tasks', to: '/' },
         { label: task.roomId, to: '/' },
@@ -103,7 +106,7 @@ export default function ImageQA() {
             <div className="text-[14px] font-semibold">Camera Views</div>
             <div className="flex max-h-[370px] flex-col gap-2.5 overflow-y-auto pr-1">
               {camera.map((p) => (
-                <Photo key={p.id} photo={p} className="h-[110px] w-full" caption />
+                <Photo key={p.id} photo={p} className="h-[110px] w-full" caption first={p.id === firstAutoId} />
               ))}
             </div>
           </div>
@@ -154,7 +157,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 /** Placeholder room photo. Auto-passed photos get a small icon; the confidence only shows on hover. */
-function Photo({ photo: p, className, caption }: { photo: IqaPhoto; className?: string; caption?: boolean }) {
+function Photo({ photo: p, className, caption, first }: { photo: IqaPhoto; className?: string; caption?: boolean; first?: boolean }) {
   return (
     <div className={cn('relative shrink-0 overflow-hidden rounded-[6px] border border-[#e5e5e5] bg-white p-1', className)}>
       <div className="relative size-full overflow-hidden rounded-[3px]" style={{ background: p.tone }}>
@@ -173,6 +176,7 @@ function Photo({ photo: p, className, caption }: { photo: IqaPhoto; className?: 
               tabIndex={0}
               aria-label="Auto-passed"
               data-testid="auto-passed"
+              data-change={first ? 'auto-pass' : undefined}
               className="absolute top-2 left-2 flex size-[22px] items-center justify-center rounded-full bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.2)]"
             >
               <BadgeCheck className="size-[15px] text-[#15803d]" />
