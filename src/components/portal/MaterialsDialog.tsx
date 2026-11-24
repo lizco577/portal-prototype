@@ -15,12 +15,13 @@ const SORTS: { key: MaterialSort; label: string; hint: string }[] = [
   { key: 'custom', label: 'Custom', hint: 'Drag rows to set your own order' },
 ]
 
-/** Materials, managed in a modal opened from the draw screen. Add, rename, delete, search, sort. No merge, no usage counts. */
+/**
+ * Materials, managed in a modal opened from the draw screen. One box searches and creates: if nothing
+ * matches exactly, the top row offers to create it. Rename, delete, sort. No merge, no usage counts.
+ */
 export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { sortedMaterials, materials, setMaterials, materialSort, setMaterialSort, showToast } = useStore()
   const [q, setQ] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [newName, setNewName] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [sortOpen, setSortOpen] = useState(false)
@@ -32,15 +33,15 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
 
   const exists = (name: string, exceptId?: string) =>
     materials.some((m) => m.id !== exceptId && m.name.trim().toLowerCase() === name.trim().toLowerCase())
-  const addError = newName.trim() && exists(newName) ? `"${newName.trim()}" already exists` : null
+  // Offer "Create" only when the typed name isn't already a material (ignoring capitals)
+  const canCreate = !!q.trim() && !exists(q)
   const renameError = renaming && renameValue.trim() && exists(renameValue, renaming) ? 'Another material already has this name' : null
 
-  const add = () => {
-    const name = newName.trim()
-    if (!name || addError) return
+  const create = () => {
+    const name = q.trim()
+    if (!canCreate) return
     setMaterials((ms) => [...ms, { id: `m${Date.now()}`, name, usage: 0 }])
-    setNewName('')
-    setAdding(false)
+    setQ('')
     showToast(`Added ${name}`)
   }
   const saveRename = () => {
@@ -82,7 +83,10 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search materials…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') create()
+              }}
+              placeholder="Search or add a material…"
               className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#a3a3a3]"
             />
             {q && (
@@ -110,16 +114,6 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <button
-            onClick={() => {
-              // Start the new name from whatever is typed in the search box
-              setNewName(q.trim())
-              setAdding(true)
-            }}
-            className="flex h-[34px] items-center gap-1.5 rounded-[8px] bg-[#171717] px-3 text-[12.5px] font-medium text-white hover:bg-[#262626]"
-          >
-            <Plus className="size-3.5" /> New material
-          </button>
         </div>
 
         {materialSort === 'custom' && (
@@ -129,46 +123,17 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-[#e5e5e5]">
-          {adding && (
-            <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-[22px] py-2.5">
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') add()
-                    if (e.key === 'Escape') {
-                      e.stopPropagation()
-                      setAdding(false)
-                      setNewName('')
-                    }
-                  }}
-                  placeholder="New material name, e.g. Vinyl plank"
-                  className={cn(
-                    'h-[32px] flex-1 rounded-[7px] border bg-white px-[10px] text-[13px] outline-none',
-                    addError ? 'border-[#dc2626]' : 'border-[#e5e5e5] focus:border-[#a3a3a3]',
-                  )}
-                />
-                <button
-                  onClick={() => {
-                    setAdding(false)
-                    setNewName('')
-                  }}
-                  className="h-[32px] rounded-[7px] border border-[#e5e5e5] bg-white px-3 text-[12.5px] font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={add}
-                  disabled={!newName.trim() || !!addError}
-                  className="h-[32px] rounded-[7px] bg-[#171717] px-3 text-[12.5px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
-                >
-                  Add material
-                </button>
-              </div>
-              {addError && <div className="mt-1.5 text-[11.5px] text-[#dc2626]">{addError}. Names are checked ignoring capitals.</div>}
-            </div>
+          {canCreate && (
+            <button
+              onClick={create}
+              className="flex min-h-[42px] w-full items-center gap-2 border-b border-[#f0f0f0] bg-[#fafafa] px-[22px] text-left text-[13px] hover:bg-[#f2f2f2]"
+            >
+              <Plus className="size-3.5 text-[#525252]" />
+              <span>
+                Create <span className="font-medium">"{q.trim()}"</span>
+              </span>
+              <span className="ml-auto text-[11.5px] text-[#a3a3a3]">Enter</span>
+            </button>
           )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={shown.map((m) => m.id)} strategy={verticalListSortingStrategy}>
@@ -193,19 +158,8 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
               ))}
             </SortableContext>
           </DndContext>
-          {shown.length === 0 && !adding && (
-            <div className="px-[22px] py-8 text-center text-[13px] text-[#737373]">
-              No materials match "{q}".{' '}
-              <button
-                className="underline"
-                onClick={() => {
-                  setAdding(true)
-                  setNewName(q)
-                }}
-              >
-                Add it
-              </button>
-            </div>
+          {shown.length === 0 && !canCreate && (
+            <div className="px-[22px] py-8 text-center text-[13px] text-[#737373]">No materials yet. Type a name above to add one.</div>
           )}
         </div>
         <div className="border-t border-[#e5e5e5] px-[22px] py-2.5 text-[11.5px] text-[#737373]">
