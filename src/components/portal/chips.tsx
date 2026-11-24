@@ -60,11 +60,11 @@ export function TaskStatusChip({ status }: { status: TaskStatus }) {
 }
 
 // SLA pill, style B from "SLA warning approaches". No icons: the word carries the meaning.
-// Only Overdue and Due in are coloured; Due soon and On track use the neutral grey pill.
+// Only Overdue and Due soon are coloured; Due in and On track use the neutral grey pill.
 export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; word: string; hint: string }> = {
   overdue: { bg: '#b91c1c', text: '#ffffff', word: 'Overdue', hint: 'Past the SLA due time' },
-  critical: { bg: '#f5f5f5', text: '#262626', word: 'Due soon', hint: 'Under 1 hour left' },
-  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Due in', hint: '1 to 3 hours left' },
+  critical: { bg: 'rgba(220,38,38,0.16)', text: '#b91c1c', word: 'Due soon', hint: 'Under 1 hour left' },
+  warning: { bg: '#f5f5f5', text: '#262626', word: 'Due in', hint: '1 to 3 hours left' },
   ok: { bg: '#f5f5f5', text: '#262626', word: 'On track', hint: 'More than 3 hours left' },
 }
 
