@@ -46,7 +46,7 @@ export function AppShell({
   const { toast, changesOpen, setChangesOpen } = useStore()
   const hasChanges = !!changes && changes.length > 0
   return (
-    <div className="flex h-screen min-w-[1100px] bg-white text-[#0a0a0a]">
+    <div className="flex h-screen min-w-[800px] bg-white text-[#0a0a0a]">
       {!collapsed && <Sidebar />}
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-[#e5e5e5] px-5">

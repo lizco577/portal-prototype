@@ -165,6 +165,28 @@ export default function TaskQueue() {
     selected: filters.cols[col],
     onChange: (v: string[]) => setCol(col, v),
   })
+  const hasChips = !!(filters.card || filters.priority || PICKER_COLS.some((c) => filters.cols[c].length))
+  const chips = (
+    <>
+      {filters.card && <FilterChip label={CARD_LABEL[filters.card]} onRemove={() => update((f) => ({ ...f, card: null }))} />}
+      {filters.priority && <FilterChip label="Priority" onRemove={() => update((f) => ({ ...f, priority: false }))} />}
+      {PICKER_COLS.filter((c) => filters.cols[c].length).map((c) => (
+        <FilterChip
+          key={c}
+          label={`${COL_LABEL[c]}: ${options[c]
+            .filter((v) => filters.cols[c].includes(v))
+            .map((v) => valueLabel(c, v))
+            .join(', ')}`}
+          onRemove={() => setCol(c, [])}
+        />
+      ))}
+    </>
+  )
+  const clearAllButton = (
+    <button onClick={clearAll} className="h-[35px] px-1.5 text-[13px] whitespace-nowrap text-[#525252] hover:text-[#0a0a0a] hover:underline">
+      Clear all
+    </button>
+  )
   const typeMenu = <TaskTypeMenuItems selected={typeSel} counts={facets.type} total={typeTotal} onSelect={setType} />
 
   const claim = (t: Task) => {
@@ -204,9 +226,9 @@ export default function TaskQueue() {
 
   return (
     <AppShell crumbs={[{ label: 'Tasks' }]} changes={TASK_LIST_CHANGES} search={{ value: filters.query, onChange: (q) => update((f) => ({ ...f, query: q })) }}>
-      <div className="flex flex-col gap-4 px-[17px] pt-4 pb-6">
+      <div className="@container/page flex flex-col gap-4 px-[17px] pt-4 pb-6">
         {/* Summary cards: click to filter, click again to clear */}
-        <div className="grid grid-cols-4 gap-[18px]" data-change="summary-cards">
+        <div className="grid grid-cols-4 gap-[18px] @max-[640px]/page:grid-cols-2" data-change="summary-cards">
           {CARDS.map((c) => (
             <SummaryCard
               key={c.key}
@@ -221,9 +243,12 @@ export default function TaskQueue() {
           ))}
         </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-[10px] [&>*]:shrink-0 [&>div]:shrink">
-          <label className="flex h-9 w-[260px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] focus-within:border-[#a3a3a3]">
+        {/* Toolbar. It's a container so it adapts to its own width (the page gets narrower when the
+            sidebar or the What's changed panel is open): the search box shrinks first, filter chips move
+            to their own row, and on very narrow widths two buttons drop to icon only. */}
+        <div className="@container flex flex-col gap-[10px]">
+        <div className="flex flex-wrap items-center gap-[10px]">
+          <label className="flex h-9 max-w-[260px] min-w-[150px] flex-[1_1_150px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] focus-within:border-[#a3a3a3]">
             <Search className="size-3.5 text-[#a3a3a3]" />
             <input
               value={filters.query}
@@ -304,31 +329,19 @@ export default function TaskQueue() {
 
           <PriorityPanel tasks={tasks} />
 
-          {/* Active filter chips: one line, so the table never jumps while a picker is open */}
-          <div className="flex min-w-0 items-center gap-[10px] overflow-x-auto [scrollbar-width:none]">
-            {filters.card && <FilterChip label={CARD_LABEL[filters.card]} onRemove={() => update((f) => ({ ...f, card: null }))} />}
-            {filters.priority && <FilterChip label="Priority" onRemove={() => update((f) => ({ ...f, priority: false }))} />}
-            {PICKER_COLS.filter((c) => filters.cols[c].length).map((c) => (
-              <FilterChip
-                key={c}
-                label={`${COL_LABEL[c]}: ${options[c]
-                  .filter((v) => filters.cols[c].includes(v))
-                  .map((v) => valueLabel(c, v))
-                  .join(', ')}`}
-                onRemove={() => setCol(c, [])}
-              />
-            ))}
-          </div>
-          {(filters.card || filters.priority || PICKER_COLS.some((c) => filters.cols[c].length)) && (
-            <button onClick={clearAll} className="h-[35px] px-1.5 text-[13px] whitespace-nowrap text-[#525252] hover:text-[#0a0a0a] hover:underline">
-              Clear all
-            </button>
+          {/* Wide: chips sit inline, on one line, so the table never jumps while a picker is open */}
+          {hasChips && (
+            <>
+              <div className="hidden min-w-0 shrink items-center gap-[10px] overflow-x-auto [scrollbar-width:none] @min-[1100px]:flex">{chips}</div>
+              <div className="hidden shrink-0 @min-[1100px]:block">{clearAllButton}</div>
+            </>
           )}
           <div className="flex-1" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <ToolbarButton active={hidden.size > 0}>
-                <Columns3 className="size-3.5" /> Columns
+              <ToolbarButton active={hidden.size > 0} aria-label="Columns">
+                <Columns3 className="size-3.5" />
+                <span className="@max-[680px]:hidden">Columns</span>
               </ToolbarButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
@@ -352,6 +365,14 @@ export default function TaskQueue() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+        {/* Narrower: chips get their own row */}
+        {hasChips && (
+          <div className="flex flex-wrap items-center gap-[10px] @min-[1100px]:hidden">
+            {chips}
+            {clearAllButton}
+          </div>
+        )}
         </div>
 
         {/* Table */}
@@ -722,7 +743,7 @@ function ToolbarButton({ children, active, ...props }: React.ButtonHTMLAttribute
     <button
       {...props}
       className={cn(
-        'flex h-[35px] items-center gap-[7px] rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] hover:bg-[#fafafa]',
+        'flex h-[35px] shrink-0 items-center gap-[7px] rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium whitespace-nowrap shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] hover:bg-[#fafafa]',
         active ? 'border-[#a3a3a3]' : 'border-[#e5e5e5]',
       )}
     >
