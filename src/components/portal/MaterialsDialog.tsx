@@ -3,7 +3,7 @@ import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowUpDown, Check, ChevronDown, Ellipsis, GripVertical, Plus, Search, X } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Material } from '@/data/labeling'
 import { useStore, type MaterialSort } from '@/lib/store'
@@ -70,12 +70,9 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(640px,calc(100vh-48px))] w-[560px] max-w-[calc(100vw-32px)] flex-col gap-0 overflow-hidden rounded-[12px] p-0 sm:max-w-[560px]">
+      <DialogContent aria-describedby={undefined} className="flex max-h-[min(640px,calc(100vh-48px))] w-[560px] max-w-[calc(100vw-32px)] flex-col gap-0 overflow-hidden rounded-[12px] p-0 sm:max-w-[560px]">
         <div className="flex flex-col gap-[3px] px-[22px] pt-5 pb-4 pr-12">
           <DialogTitle className="text-[16px] font-semibold">Materials</DialogTitle>
-          <DialogDescription className="text-[12.5px] text-[#737373]">
-            The options specialists pick from when labeling damage. Changes show up in the labeling menu right away.
-          </DialogDescription>
         </div>
 
         <div className="flex items-center gap-2 px-[22px] pb-3">
@@ -114,7 +111,11 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
             </DropdownMenuContent>
           </DropdownMenu>
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              // Start the new name from whatever is typed in the search box
+              setNewName(q.trim())
+              setAdding(true)
+            }}
             className="flex h-[34px] items-center gap-1.5 rounded-[8px] bg-[#171717] px-3 text-[12.5px] font-medium text-white hover:bg-[#262626]"
           >
             <Plus className="size-3.5" /> New material
@@ -192,7 +193,7 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
               ))}
             </SortableContext>
           </DndContext>
-          {shown.length === 0 && (
+          {shown.length === 0 && !adding && (
             <div className="px-[22px] py-8 text-center text-[13px] text-[#737373]">
               No materials match "{q}".{' '}
               <button
@@ -208,7 +209,7 @@ export function MaterialsDialog({ open, onOpenChange }: { open: boolean; onOpenC
           )}
         </div>
         <div className="border-t border-[#e5e5e5] px-[22px] py-2.5 text-[11.5px] text-[#737373]">
-          {materials.length} materials · Deleting one takes it out of the menu. Labels already using it keep it.
+          {materials.length} materials
         </div>
       </DialogContent>
     </Dialog>
@@ -297,15 +298,12 @@ function MaterialRow({
                 <Ellipsis className="size-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[220px]">
+            <DropdownMenuContent align="end" className="w-[160px]">
               <DropdownMenuItem className="text-[13px]" onSelect={onStartRename}>
                 Rename
               </DropdownMenuItem>
-              <DropdownMenuItem className="items-start text-[13px] text-[#dc2626] focus:text-[#dc2626]" onSelect={onDelete}>
-                <span>
-                  <span className="block">Delete</span>
-                  <span className="block text-[11.5px] text-[#737373]">Removed from the labeling menu. Labels already using it keep it.</span>
-                </span>
+              <DropdownMenuItem className="text-[13px] text-[#dc2626] focus:text-[#dc2626]" onSelect={onDelete}>
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

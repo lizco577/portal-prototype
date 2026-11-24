@@ -194,21 +194,6 @@ export default function DamageLabeling() {
               <Tool icon={Redo2} label="Redo" disabled={!redo.length} onClick={redoLast} />
             </div>
 
-            {/* Hint above the photo */}
-            <div className="flex items-center gap-2 self-start text-[12px] text-[#525252]" data-testid="draw-hint" data-change="draw-hint">
-              <span className={cn('size-1.5 rounded-full', mode === 'draw' ? 'bg-[#16a34a]' : 'bg-[#a3a3a3]')} />
-              {mode === 'draw' ? (
-                'Click on the photo to draw · Esc to stop drawing'
-              ) : (
-                <span>
-                  Drawing is off.{' '}
-                  <button className="font-medium text-[#171717] underline" onClick={() => setMode('draw')}>
-                    Turn drawing back on
-                  </button>
-                </span>
-              )}
-            </div>
-
             <div
               className={cn('relative flex h-[470px] items-center justify-center overflow-hidden rounded-[4px] bg-black', mode === 'draw' && 'cursor-crosshair')}
               onClick={onCanvasClick}
@@ -216,6 +201,27 @@ export default function DamageLabeling() {
               onMouseMove={(e) => mode === 'draw' && setCursor(toPoint(e))}
               onMouseLeave={() => setCursor(null)}
             >
+              {/* Hint pill on the photo, as in "UI DL · Draw · L2 L3 L4". It never blocks drawing. */}
+              <div
+                data-testid="draw-hint"
+                data-change="draw-hint"
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  'absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1.5 text-[12px] whitespace-nowrap text-white backdrop-blur-sm',
+                  mode === 'draw' && 'pointer-events-none',
+                )}
+              >
+                {mode === 'draw' ? (
+                  'Click on the photo to draw · Esc to stop drawing'
+                ) : (
+                  <span>
+                    Drawing is off ·{' '}
+                    <button className="font-medium underline underline-offset-2" onClick={() => setMode('draw')}>
+                      Turn it back on
+                    </button>
+                  </span>
+                )}
+              </div>
               <div
                 ref={photoRef}
                 className="relative aspect-[458/470] h-full transition-transform"
