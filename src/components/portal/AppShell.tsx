@@ -12,7 +12,7 @@ import {
   ListTodo,
   Moon,
   PanelLeft,
-  PanelRight,
+  MessageSquareText,
   Search,
   Workflow,
   X,
@@ -137,7 +137,7 @@ export function AppShell({
                     aria-label={changesOpen ? "Hide What's changed" : "Show What's changed"}
                     aria-pressed={changesOpen}
                   >
-                    <PanelRight className="size-4" />
+                    <MessageSquareText className="size-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
