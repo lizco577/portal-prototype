@@ -1,6 +1,7 @@
 import {
   AlarmClock,
   Box,
+  CircleAlert,
   CircleCheck,
   CircleDashed,
   Clock,
@@ -13,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { TaskStatus, TaskType } from '@/data/tasks'
-import { slaLabel, slaState, type SlaState } from '@/lib/sla'
+import { formatDuration, slaState, type SlaState } from '@/lib/sla'
 import { cn } from '@/lib/utils'
 
 // Colours copied from "Components · Portal UI" (Task type chip).
@@ -41,7 +42,6 @@ export function TaskTypeChip({ type, className }: { type: TaskType; className?: 
 
 // Colours copied from "Components · Portal UI" (Task status).
 const STATUS_STYLE: Record<TaskStatus, { bg: string; border: string; text: string; icon: LucideIcon }> = {
-  Waiting: { bg: '#fafafa', border: '#e5e5e5', text: '#737373', icon: Hourglass },
   'Not started': { bg: '#f5f5f5', border: '#e5e5e5', text: '#525252', icon: CircleDashed },
   'In Progress': { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', icon: Clock },
   'In review': { bg: '#ffffff', border: '#a3a3a3', text: '#262626', icon: Eye },
@@ -63,26 +63,29 @@ export function TaskStatusChip({ status }: { status: TaskStatus }) {
 }
 
 // SLA pill, style B from "SLA warning approaches", extended to four buckets.
-export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; label: string }> = {
-  overdue: { bg: '#b91c1c', text: '#ffffff', label: 'Overdue' },
-  critical: { bg: 'rgba(220,38,38,0.16)', text: '#b91c1c', label: 'Under 1 hour' },
-  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', label: '1 to 3 hours' },
-  ok: { bg: 'rgba(22,163,74,0.14)', text: '#15803d', label: 'More than 3 hours' },
+// Every bucket has a word and an icon as well as a colour, so it never relies on colour alone.
+export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; word: string; hint: string; icon: LucideIcon }> = {
+  overdue: { bg: '#b91c1c', text: '#ffffff', word: 'Overdue', hint: 'Past the SLA due time', icon: CircleAlert },
+  critical: { bg: 'rgba(220,38,38,0.16)', text: '#b91c1c', word: 'Due soon', hint: 'Under 1 hour left', icon: AlarmClock },
+  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Close', hint: '1 to 3 hours left', icon: Hourglass },
+  ok: { bg: 'rgba(22,163,74,0.14)', text: '#15803d', word: 'On track', hint: 'More than 3 hours left', icon: Clock },
 }
 
 export function SlaPill({ mins }: { mins: number | null }) {
   const state = slaState(mins)
   if (state === 'none') return <span className="text-[12.5px] text-[#a3a3a3]">--</span>
   const s = SLA_STYLE[state]
-  const Icon = state === 'overdue' || state === 'critical' ? AlarmClock : Clock
+  const Icon = s.icon
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-[5px] rounded-full px-2 py-[3px] text-[12px] font-semibold whitespace-nowrap tabular-nums"
+      className="inline-flex shrink-0 items-center gap-[5px] rounded-full px-2 py-[3px] text-[12px] whitespace-nowrap tabular-nums"
       style={{ background: s.bg, color: s.text }}
-      title={s.label}
+      title={`${s.hint}${mins != null && mins < 0 ? ` by ${formatDuration(mins)}` : ''}`}
     >
       <Icon className="size-3" strokeWidth={2.25} />
-      {slaLabel(mins)}
+      <span className="font-semibold">{s.word}</span>
+      <span className="opacity-60">·</span>
+      <span className="font-medium">{formatDuration(mins!)}</span>
     </span>
   )
 }

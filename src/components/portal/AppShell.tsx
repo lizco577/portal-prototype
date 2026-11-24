@@ -4,6 +4,7 @@ import {
   Activity,
   Bell,
   Box,
+  Check,
   ChevronRight,
   ChevronsUpDown,
   FileText,
@@ -13,21 +14,34 @@ import {
   PanelLeft,
   Search,
   Workflow,
+  X,
 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export type Crumb = { label: string; to?: string }
+type SearchBinding = { value: string; onChange: (v: string) => void }
 
-export function AppShell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNode }) {
+const TIMEZONES = ['MST', 'PST', 'CST', 'EST', 'UTC']
+
+export function AppShell({ crumbs, children, search }: { crumbs: Crumb[]; children: ReactNode; search?: SearchBinding }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [tz, setTz] = useState('MST')
   return (
     <div className="flex h-screen min-w-[1100px] bg-white text-[#0a0a0a]">
       {!collapsed && <Sidebar />}
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-[#e5e5e5] px-5">
-          <button onClick={() => setCollapsed((c) => !c)} className="rounded p-0.5 hover:bg-black/5" aria-label="Toggle sidebar">
-            <PanelLeft className="size-4" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => setCollapsed((c) => !c)} className="rounded p-0.5 hover:bg-black/5" aria-label="Toggle sidebar">
+                <PanelLeft className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{collapsed ? 'Show sidebar' : 'Hide sidebar'}</TooltipContent>
+          </Tooltip>
           <div className="h-5 w-px bg-[#e5e5e5]" />
           <nav className="flex min-w-0 items-center gap-2 text-[13.5px]">
             {crumbs.map((c, i) => (
@@ -44,15 +58,58 @@ export function AppShell({ crumbs, children }: { crumbs: Crumb[]; children: Reac
             ))}
           </nav>
           <div className="flex-1" />
-          <div className="flex h-9 w-[200px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] text-[13px] text-[#a3a3a3]">
-            <Search className="size-3.5" />
-            Search
-          </div>
-          <div className="flex items-center gap-1.5 pl-2 text-[12.5px] font-medium">
-            <Globe className="size-[15px]" /> MST
-          </div>
-          <Bell className="ml-3 size-[15px]" />
-          <Moon className="ml-3 size-[15px]" />
+          {/* Header search searches the same task list as the toolbar box */}
+          <label className="flex h-9 w-[200px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] focus-within:border-[#a3a3a3]">
+            <Search className="size-3.5 text-[#a3a3a3]" />
+            <input
+              value={search?.value ?? ''}
+              onChange={(e) => search?.onChange(e.target.value)}
+              placeholder="Search"
+              className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#a3a3a3]"
+            />
+            {search?.value && (
+              <button onClick={() => search.onChange('')} aria-label="Clear search">
+                <X className="size-3.5 text-[#737373]" />
+              </button>
+            )}
+          </label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-medium hover:bg-black/5">
+                <Globe className="size-[15px]" /> {tz}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[160px]">
+              <DropdownMenuLabel className="text-[11.5px] text-[#737373]">Show times in</DropdownMenuLabel>
+              {TIMEZONES.map((z) => (
+                <DropdownMenuItem key={z} className="text-[13px]" onSelect={() => setTz(z)}>
+                  <span className="flex-1">{z}</span>
+                  {z === tz && <Check className="size-3.5" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="rounded-md p-1.5 hover:bg-black/5" aria-label="Notifications">
+                <Bell className="size-[15px]" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] p-4 text-[13px]">
+              <div className="font-medium">Notifications</div>
+              <div className="mt-1 text-[12.5px] text-[#737373]">You're all caught up. Review requests from teammates also show in My Tasks.</div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="rounded-md p-1.5 hover:bg-black/5" aria-label="Dark mode">
+                <Moon className="size-[15px]" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[220px] p-3 text-[12.5px] text-[#525252]">
+              Dark mode isn't part of this prototype.
+            </PopoverContent>
+          </Popover>
         </header>
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       </main>
@@ -82,14 +139,25 @@ function Sidebar() {
         <NavItem icon={Activity} label="Claims" />
       </NavGroup>
       <div className="flex-1" />
-      <div className="flex items-center gap-[10px] px-[6px]">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-[#f0f0f0] text-[13px] font-medium">E</div>
-        <div className="flex-1 leading-tight">
-          <div className="text-[13.5px] font-medium">ecohen</div>
-          <div className="text-[11px] text-[#737373]">ecohen@hosta.ai</div>
-        </div>
-        <ChevronsUpDown className="size-4 text-[#737373]" />
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-[10px] rounded-md px-[6px] py-1 text-left hover:bg-black/[0.03]">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-[#f0f0f0] text-[13px] font-medium">E</div>
+            <div className="flex-1 leading-tight">
+              <div className="text-[13.5px] font-medium">ecohen</div>
+              <div className="text-[11px] text-[#737373]">ecohen@hosta.ai</div>
+            </div>
+            <ChevronsUpDown className="size-4 text-[#737373]" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="w-[228px]">
+          <DropdownMenuLabel className="text-[12px] font-normal text-[#737373]">Signed in as Eli Cohen · Admin</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled className="text-[13px]">
+            Sign out (not in prototype)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </aside>
   )
 }
@@ -108,13 +176,22 @@ function NavItem({ icon: Icon, label, to, active }: { icon: typeof Box; label: s
     'flex items-center gap-[10px] rounded-md px-[10px] py-[7px] text-[13.5px] font-medium',
     active ? 'bg-[#efefef]' : 'text-[#262626] hover:bg-black/[0.03]',
   )
-  return to ? (
-    <Link to={to} className={cls}>
-      <Icon className="size-4" /> {label}
-    </Link>
-  ) : (
-    <div className={cn(cls, 'cursor-default')}>
-      <Icon className="size-4" /> {label}
-    </div>
+  if (to)
+    return (
+      <Link to={to} className={cls}>
+        <Icon className="size-4" /> {label}
+      </Link>
+    )
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className={cn(cls, 'w-full text-left')}>
+          <Icon className="size-4" /> {label}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" className="w-[220px] p-3 text-[12.5px] text-[#525252]">
+        {label} isn't part of this prototype. The Tasks Queue is.
+      </PopoverContent>
+    </Popover>
   )
 }

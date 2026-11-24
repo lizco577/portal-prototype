@@ -1,7 +1,7 @@
 export const TASK_TYPES = ['Damage Labeling', 'ImageQA', 'Modelling', 'Remodel', 'QA'] as const
 export type TaskType = (typeof TASK_TYPES)[number]
 
-export const TASK_STATUSES = ['Waiting', 'Not started', 'In Progress', 'In review', 'Done'] as const
+export const TASK_STATUSES = ['Not started', 'In Progress', 'In review', 'Done'] as const
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export const ORGANIZATIONS = ['USAA', 'State Farm', 'Allstate', 'Liberty Mutual', 'hostalabs'] as const
@@ -17,7 +17,10 @@ export type Task = {
   status: TaskStatus
   /** absolute due time in ms, null when done */
   dueAt: number | null
+  /** who the task is with now; for "In review" this is the reviewer */
   assigneeId: string | null
+  /** set when a teammate sent the task to assigneeId for review */
+  sentById: string | null
   claimedById: string | null
   claimOpened: string
   starred: boolean
@@ -36,9 +39,9 @@ const hex = (n: number) =>
   Array.from({ length: n }, () => Math.floor(rand() * 16).toString(16)).join('')
 const uuid = () => `${hex(8)}-${hex(4)}-4${hex(3)}-${'89ab'[Math.floor(rand() * 4)]}${hex(3)}-${hex(12)}`
 
-type Seed = [TaskType, string, Organization, TaskStatus, number | null, string | null, string]
+type Seed = [TaskType, string, Organization, TaskStatus, number | null, string | null, string, string?]
 
-// [type, room, org, status, minutes until SLA (negative = overdue, null = done), assignee, claim opened]
+// [type, room, org, status, minutes until SLA (negative = overdue, null = done), assignee, claim opened, sent for review by]
 const seeds: Seed[] = [
   ['Damage Labeling', 'hallway', 'USAA', 'Not started', -25, 'ecohen', 'Nov 21, 2026'],
   ['Remodel', 'kitchen', 'State Farm', 'Not started', 42, 'ecohen', 'Nov 20, 2026'],
@@ -46,20 +49,20 @@ const seeds: Seed[] = [
   ['QA', 'dining', 'Allstate', 'Not started', 220, 'jcampos', 'Nov 19, 2026'],
   ['Modelling', 'living', 'USAA', 'Not started', 1560, null, 'Nov 23, 2026'],
   ['ImageQA', 'living', 'Liberty Mutual', 'Not started', 1740, null, 'Nov 23, 2026'],
-  ['Damage Labeling', 'closet', 'State Farm', 'Not started', 1860, null, 'Nov 22, 2026'],
+  ['Damage Labeling', 'closet', 'State Farm', 'In review', 1860, 'ecohen', 'Nov 22, 2026', 'jcampos'],
   ['Modelling', 'bedroom', 'USAA', 'Not started', 2940, null, 'Nov 22, 2026'],
   ['Remodel', 'bathroom', 'Allstate', 'Not started', 3240, null, 'Nov 21, 2026'],
   ['QA', 'bathroom', 'hostalabs', 'Done', null, 'aatencio', 'Nov 18, 2026'],
   ['Damage Labeling', 'kitchen', 'Allstate', 'In Progress', -95, 'rpatel', 'Nov 20, 2026'],
   ['Modelling', 'basement', 'USAA', 'Not started', -310, 'lmoreno', 'Nov 19, 2026'],
-  ['ImageQA', 'bedroom', 'State Farm', 'Waiting', -12, null, 'Nov 21, 2026'],
+  ['ImageQA', 'bedroom', 'State Farm', 'Not started', -12, null, 'Nov 21, 2026'],
   ['Damage Labeling', 'living', 'Liberty Mutual', 'Not started', 18, 'bnguyen', 'Nov 22, 2026'],
-  ['QA', 'kitchen', 'USAA', 'In review', 55, 'jaguda', 'Nov 21, 2026'],
+  ['QA', 'kitchen', 'USAA', 'In review', 55, 'ecohen', 'Nov 21, 2026', 'jaguda'],
   ['Remodel', 'hallway', 'hostalabs', 'Not started', 75, null, 'Nov 22, 2026'],
   ['Modelling', 'kitchen', 'USAA', 'In Progress', 110, 'ecohen', 'Nov 20, 2026'],
   ['Damage Labeling', 'bathroom', 'State Farm', 'Not started', 165, 'jcampos', 'Nov 23, 2026'],
   ['ImageQA', 'dining', 'Allstate', 'Not started', 190, null, 'Nov 23, 2026'],
-  ['Modelling', 'garage', 'Liberty Mutual', 'Waiting', 260, null, 'Nov 22, 2026'],
+  ['Modelling', 'garage', 'Liberty Mutual', 'In review', 260, 'lmoreno', 'Nov 22, 2026', 'rpatel'],
   ['Damage Labeling', 'bedroom', 'USAA', 'Not started', 330, 'aatencio', 'Nov 23, 2026'],
   ['QA', 'living', 'State Farm', 'Not started', 480, null, 'Nov 23, 2026'],
   ['Remodel', 'bedroom', 'USAA', 'In Progress', 620, 'rpatel', 'Nov 21, 2026'],
@@ -87,7 +90,7 @@ const fixedRoomIds = [
 ]
 
 export function buildTasks(now: number): Task[] {
-  return seeds.map(([type, roomType, org, status, mins, assigneeId, claimOpened], i) => ({
+  return seeds.map(([type, roomType, org, status, mins, assigneeId, claimOpened, sentById], i) => ({
     id: uuid(),
     type,
     roomType,
@@ -97,7 +100,8 @@ export function buildTasks(now: number): Task[] {
     status,
     dueAt: mins == null ? null : now + mins * 60000,
     assigneeId,
-    claimedById: status === 'In Progress' || status === 'Done' ? assigneeId : null,
+    sentById: sentById ?? null,
+    claimedById: status === 'Not started' ? null : (sentById ?? assigneeId),
     claimOpened,
     starred: false,
   }))
