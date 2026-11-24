@@ -13,7 +13,6 @@ import {
   Settings,
   Trash2,
   Undo2,
-  WandSparkles,
   X,
   ZoomIn,
   ZoomOut,
@@ -24,7 +23,6 @@ import { Avatar } from '@/components/portal/assignee'
 import { ChoiceSelect } from '@/components/portal/ChoiceSelect'
 import { MaterialsDialog } from '@/components/portal/MaterialsDialog'
 import { SendForReviewDialog } from '@/components/portal/SendForReviewDialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
 import { currentUserId, personById } from '@/data/people'
@@ -180,16 +178,9 @@ export default function DamageLabeling() {
         <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
           <div className="flex flex-col gap-[10px] rounded-[10px] border border-[#e5e5e5] bg-white p-3">
             <div className="flex items-center gap-1">
-              <Tool icon={MousePointer2} label="Select (Esc)" active={mode === 'select'} onClick={() => (setMode('select'), setDraft([]))} />
+              {/* Pen first: drawing is the default tool when a task opens */}
               <Tool icon={PenTool} label="Draw polygon" active={mode === 'draw'} onClick={() => setMode('draw')} />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button aria-label="Magic wand" className="flex size-8 items-center justify-center rounded-[6px] hover:bg-black/5">
-                    <WandSparkles className="size-[15px]" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[230px] p-3 text-[12.5px] text-[#525252]">The magic wand isn't part of this prototype.</PopoverContent>
-              </Popover>
+              <Tool icon={MousePointer2} label="Select (Esc)" active={mode === 'select'} onClick={() => (setMode('select'), setDraft([]))} />
               <Tool
                 icon={Trash2}
                 label={selected ? 'Delete selected label' : 'Select a label to delete it'}
@@ -300,37 +291,6 @@ export default function DamageLabeling() {
                 })}
               </div>
             </div>
-
-            {/* Under the photo */}
-            <div className="flex items-center gap-2 pt-0.5" data-change="photo-buttons">
-              <button
-                onClick={nextPhoto}
-                className={cn(
-                  'h-[34px] rounded-[8px] px-3.5 text-[12.5px] font-medium',
-                  photo.labels.length ? 'border border-[#e5e5e5] bg-white text-[#171717] hover:bg-[#fafafa]' : 'bg-[#171717] text-white hover:bg-[#262626]',
-                )}
-              >
-                {photo.labels.length ? 'Next photo' : 'No damage, next photo'}
-              </button>
-              <span className="text-[12px] text-[#737373]">
-                Photo {index + 1} of {photos.length}
-              </span>
-              <div className="flex-1" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span tabIndex={allDone ? -1 : 0}>
-                    <button
-                      onClick={finish}
-                      disabled={!allDone}
-                      className="h-[34px] rounded-[8px] bg-[#171717] px-3.5 text-[12.5px] font-medium text-white hover:bg-[#262626] disabled:pointer-events-none disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
-                    >
-                      Finish labeling
-                    </button>
-                  </span>
-                </TooltipTrigger>
-                {!allDone && <TooltipContent>Label or mark all {photos.length} photos first ({photos.length - doneCount} left)</TooltipContent>}
-              </Tooltip>
-            </div>
           </div>
 
           {/* Photo strip */}
@@ -366,8 +326,8 @@ export default function DamageLabeling() {
         </div>
 
         {/* Label panel */}
-        <div className="flex w-[380px] shrink-0 flex-col gap-[14px] self-start rounded-[10px] border border-[#e5e5e5] bg-white pt-4 pb-4">
-          <div className="flex flex-col gap-[14px] px-[14px]">
+        <div className="flex w-[380px] shrink-0 flex-col rounded-[10px] border border-[#e5e5e5] bg-white">
+          <div className="flex flex-1 flex-col gap-[14px] px-[14px] pt-4 pb-4">
             {showBanner && review && (
               <ReviewBanner
                 replied={!!replied}
@@ -466,6 +426,33 @@ export default function DamageLabeling() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Panel footer, as in "UI DL · Draw · L5" */}
+          <div className="flex gap-2 border-t border-[#e5e5e5] px-[14px] py-3" data-change="photo-buttons">
+            <button
+              onClick={nextPhoto}
+              className={cn(
+                'h-[34px] flex-1 rounded-[8px] px-3 text-[12.5px] font-medium',
+                photo.labels.length ? 'border border-[#e5e5e5] bg-white text-[#171717] hover:bg-[#fafafa]' : 'bg-[#171717] text-white hover:bg-[#262626]',
+              )}
+            >
+              {photo.labels.length ? 'Next photo' : 'No damage, next photo'}
+            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={allDone ? -1 : 0} className="flex flex-1">
+                  <button
+                    onClick={finish}
+                    disabled={!allDone}
+                    className="h-[34px] flex-1 rounded-[8px] bg-[#171717] px-3 text-[12.5px] font-medium text-white hover:bg-[#262626] disabled:pointer-events-none disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
+                  >
+                    Finish labeling
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {!allDone && <TooltipContent>Label or mark all {photos.length} photos first ({photos.length - doneCount} left)</TooltipContent>}
+            </Tooltip>
           </div>
         </div>
       </div>
