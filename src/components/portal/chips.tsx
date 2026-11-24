@@ -67,7 +67,7 @@ export function TaskStatusChip({ status }: { status: TaskStatus }) {
 export const SLA_STYLE: Record<Exclude<SlaState, 'none'>, { bg: string; text: string; word: string; hint: string; icon: LucideIcon }> = {
   overdue: { bg: '#b91c1c', text: '#ffffff', word: 'Overdue', hint: 'Past the SLA due time', icon: CircleAlert },
   critical: { bg: 'rgba(220,38,38,0.16)', text: '#b91c1c', word: 'Due soon', hint: 'Under 1 hour left', icon: AlarmClock },
-  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Close', hint: '1 to 3 hours left', icon: Hourglass },
+  warning: { bg: 'rgba(234,179,8,0.22)', text: '#854d0e', word: 'Due in', hint: '1 to 3 hours left', icon: Hourglass },
   ok: { bg: 'rgba(22,163,74,0.14)', text: '#15803d', word: 'On track', hint: 'More than 3 hours left', icon: Clock },
 }
 

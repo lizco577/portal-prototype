@@ -23,7 +23,8 @@ export type Task = {
   sentById: string | null
   claimedById: string | null
   claimOpened: string
-  starred: boolean
+  /** manual star: true/false overrides the entity priority, null follows it */
+  star: boolean | null
 }
 
 // Small seeded generator so IDs stay the same on every load.
@@ -103,6 +104,6 @@ export function buildTasks(now: number): Task[] {
     sentById: sentById ?? null,
     claimedById: status === 'Not started' ? null : (sentById ?? assigneeId),
     claimOpened,
-    starred: false,
+    star: null,
   }))
 }

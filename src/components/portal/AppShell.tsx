@@ -19,6 +19,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export type Crumb = { label: string; to?: string }
@@ -29,6 +30,7 @@ const TIMEZONES = ['MST', 'PST', 'CST', 'EST', 'UTC']
 export function AppShell({ crumbs, children, search }: { crumbs: Crumb[]; children: ReactNode; search?: SearchBinding }) {
   const [collapsed, setCollapsed] = useState(false)
   const [tz, setTz] = useState('MST')
+  const { toast } = useStore()
   return (
     <div className="flex h-screen min-w-[1100px] bg-white text-[#0a0a0a]">
       {!collapsed && <Sidebar />}
@@ -113,6 +115,9 @@ export function AppShell({ crumbs, children, search }: { crumbs: Crumb[]; childr
         </header>
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       </main>
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>
+      )}
     </div>
   )
 }

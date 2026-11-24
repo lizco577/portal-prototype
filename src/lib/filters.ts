@@ -23,6 +23,7 @@ export const UNASSIGNED = '__none'
 export type Filters = {
   card: CardKey | null
   query: string
+  priority: boolean
   cols: Record<ColKey, string[]>
 }
 
@@ -69,8 +70,9 @@ function queryMatch(q: string, t: Task) {
  * each control's counts are worked out (faceted counts), so a number next to a
  * value is always how many rows you'd get by picking it.
  */
-export function passes(t: Task, f: Filters, now: number, skip?: ColKey | 'card') {
+export function passes(t: Task, f: Filters, now: number, isPriority: (t: Task) => boolean, skip?: ColKey | 'card' | 'priority') {
   if (skip !== 'card' && f.card && !cardMatch(f.card, t, now)) return false
+  if (skip !== 'priority' && f.priority && !isPriority(t)) return false
   if (!queryMatch(f.query.trim().toLowerCase(), t)) return false
   for (const col of Object.keys(f.cols) as ColKey[]) {
     if (col === skip) continue
@@ -101,10 +103,10 @@ export function valueLabel(col: ColKey, v: string) {
   return v
 }
 
-export function facetCounts(col: ColKey, tasks: Task[], f: Filters, now: number) {
+export function facetCounts(col: ColKey, tasks: Task[], f: Filters, now: number, isPriority: (t: Task) => boolean) {
   const counts = new Map<string, number>()
   for (const t of tasks) {
-    if (!passes(t, f, now, col)) continue
+    if (!passes(t, f, now, isPriority, col)) continue
     const v = colValue(col, t)
     counts.set(v, (counts.get(v) ?? 0) + 1)
   }

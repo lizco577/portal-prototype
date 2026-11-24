@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
@@ -18,10 +19,11 @@ import {
   ExternalLink,
   Hand,
   Hash,
+  ListFilter,
   Search,
   SlidersHorizontal,
+  Star,
   User,
-  UserRoundCheck,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -29,6 +31,8 @@ import { AppShell } from '@/components/portal/AppShell'
 import { AssigneeCell } from '@/components/portal/assignee'
 import { SlaPill, TaskStatusChip, TaskTypeChip } from '@/components/portal/chips'
 import { ColumnFilter, FilterList } from '@/components/portal/FilterPicker'
+import { PriorityPanel } from '@/components/portal/PriorityPanel'
+import { TaskTypeMenuItems, TypeDot } from '@/components/portal/TaskTypeMenu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -43,7 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { currentUserId, personById } from '@/data/people'
-import { TASK_TYPES, type Task, type TaskType } from '@/data/tasks'
+import { type Task, type TaskType } from '@/data/tasks'
 import {
   CARD_LABEL,
   cardMatch,
@@ -57,7 +61,7 @@ import {
   type ColKey,
   type Filters,
 } from '@/lib/filters'
-import { minutesLeft, slaState } from '@/lib/sla'
+import { minutesLeft, SLA_ORDER, slaState } from '@/lib/sla'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -72,6 +76,7 @@ const COLUMNS = [
 ] as const
 type ShowKey = (typeof COLUMNS)[number]['key']
 const FILTER_COLS: ColKey[] = ['type', 'room', 'org', 'status', 'assignee']
+const PICKER_COLS: ColKey[] = ['room', 'org', 'status', 'assignee'] // task type has its own dropdown
 
 const CARDS: { key: CardKey; icon: LucideIcon; hint: string; danger?: boolean }[] = [
   { key: 'mine', icon: User, hint: 'Assigned to you, including reviews' },
@@ -80,21 +85,21 @@ const CARDS: { key: CardKey; icon: LucideIcon; hint: string; danger?: boolean }[
   { key: 'inProgress', icon: Clock, hint: 'Currently being worked on' },
 ]
 
+const emptyFilters = (): Filters => ({ card: null, query: '', priority: false, cols: emptyCols() })
+
+/** Task types that open their own task page. */
+export const taskPath = (t: Task) =>
+  t.type === 'Damage Labeling' ? `/tasks/${t.id}/draw` : t.type === 'ImageQA' ? `/tasks/${t.id}/image-qa` : null
+
 export default function TaskQueue() {
-  const { tasks, now, updateTask } = useStore()
-  const [filters, setFilters] = useState<Filters>({ card: null, query: '', cols: emptyCols() })
+  const { tasks, now, updateTask, isPriority, toggleStar, showToast } = useStore()
+  const navigate = useNavigate()
+  const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [slaAsc, setSlaAsc] = useState(true)
   const [hidden, setHidden] = useState<Set<ShowKey>>(new Set())
   const [pageSize, setPageSize] = useState(20)
   const [page, setPage] = useState(0)
   const [detailsId, setDetailsId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 1800)
-    return () => clearTimeout(t)
-  }, [toast])
 
   // Any filter change goes back to page 1.
   const update = (fn: (f: Filters) => Filters) => {
@@ -102,36 +107,50 @@ export default function TaskQueue() {
     setPage(0)
   }
   const setCol = (col: ColKey, values: string[]) => update((f) => ({ ...f, cols: { ...f.cols, [col]: values } }))
+  const setType = (t: TaskType | null) => setCol('type', t ? [t] : [])
   const toggleCard = (card: CardKey) => {
     if (card === 'overdue') setSlaAsc(true) // overdue reads oldest first
     update((f) => ({ ...f, card: f.card === card ? null : card }))
   }
-  const clearAll = () => update((f) => ({ ...f, card: null, cols: emptyCols() }))
+  const clearAll = () => update((f) => ({ ...f, card: null, priority: false, cols: emptyCols() }))
 
   const rows = useMemo(() => {
     const dir = slaAsc ? 1 : -1
     return tasks
-      .filter((t) => passes(t, filters, now))
+      .filter((t) => passes(t, filters, now, isPriority))
       .sort((a, b) => {
         if ((a.dueAt == null) !== (b.dueAt == null)) return a.dueAt == null ? 1 : -1 // done at the bottom
         if (a.dueAt == null || b.dueAt == null) return 0
+        // Same SLA colour: starred / priority tasks go first, then by time left.
+        const sa = SLA_ORDER[slaState(minutesLeft(a.dueAt, now))]
+        const sb = SLA_ORDER[slaState(minutesLeft(b.dueAt, now))]
+        if (sa !== sb) return (sa - sb) * dir
+        const pa = isPriority(a) ? 0 : 1
+        const pb = isPriority(b) ? 0 : 1
+        if (pa !== pb) return pa - pb
         return (a.dueAt - b.dueAt) * dir
       })
-  }, [tasks, filters, now, slaAsc])
+  }, [tasks, filters, now, slaAsc, isPriority])
 
   // Faceted counts: each number is how many rows you'd see by picking that option.
   const facets = useMemo(
-    () => Object.fromEntries(FILTER_COLS.map((c) => [c, facetCounts(c, tasks, filters, now)])) as Record<ColKey, Map<string, number>>,
-    [tasks, filters, now],
+    () =>
+      Object.fromEntries(FILTER_COLS.map((c) => [c, facetCounts(c, tasks, filters, now, isPriority)])) as Record<
+        ColKey,
+        Map<string, number>
+      >,
+    [tasks, filters, now, isPriority],
   )
   const options = useMemo(
     () => Object.fromEntries(FILTER_COLS.map((c) => [c, colOptions(c, tasks)])) as Record<ColKey, string[]>,
     [tasks],
   )
-  const cardCount = (card: CardKey) => tasks.filter((t) => passes(t, filters, now, 'card') && cardMatch(card, t, now)).length
+  const cardCount = (card: CardKey) =>
+    tasks.filter((t) => passes(t, filters, now, isPriority, 'card') && cardMatch(card, t, now)).length
+  const priorityCount = tasks.filter((t) => passes(t, filters, now, isPriority, 'priority') && isPriority(t)).length
   const typeTotal = [...facets.type.values()].reduce((a, b) => a + b, 0)
-  const typeSel = filters.cols.type
-  const activeColCount = FILTER_COLS.filter((c) => filters.cols[c].length).length
+  const typeSel = (filters.cols.type[0] as TaskType | undefined) ?? null
+  const activeFilterCount = PICKER_COLS.filter((c) => filters.cols[c].length).length + (typeSel ? 1 : 0) + (filters.priority ? 1 : 0)
 
   const pages = Math.max(1, Math.ceil(rows.length / pageSize))
   const safePage = Math.min(page, pages - 1)
@@ -144,14 +163,15 @@ export default function TaskQueue() {
     selected: filters.cols[col],
     onChange: (v: string[]) => setCol(col, v),
   })
+  const typeMenu = <TaskTypeMenuItems selected={typeSel} counts={facets.type} total={typeTotal} onSelect={setType} />
 
   const claim = (t: Task) => {
     updateTask(t.id, { claimedById: currentUserId, assigneeId: currentUserId, status: t.status === 'Not started' ? 'In Progress' : t.status })
-    setToast(`Claimed ${t.type} · ${t.roomType}`)
+    showToast(`Claimed ${t.type} · ${t.roomType}`)
   }
   const unclaim = (t: Task) => {
     updateTask(t.id, { claimedById: null, status: t.status === 'In Progress' ? 'Not started' : t.status })
-    setToast(`Released ${t.type} · ${t.roomType}`)
+    showToast(`Released ${t.type} · ${t.roomType}`)
   }
   // Reassigning a claimed task hands the claim over too; unassigning releases it.
   const reassign = (t: Task, id: string | null) => {
@@ -163,19 +183,22 @@ export default function TaskQueue() {
       status: claimed && !id && t.status === 'In Progress' ? 'Not started' : t.status,
     })
     const who = personById(id)
-    setToast(who ? `Assigned to ${who.name}` : 'Unassigned')
+    showToast(who ? `Assigned to ${who.name}` : 'Unassigned')
   }
   const copy = (label: string, value: string) => {
     navigator.clipboard?.writeText(value).catch(() => {})
-    setToast(`${label} copied`)
+    showToast(`${label} copied`)
   }
-
-  const dropdownLabel =
-    typeSel.length === 0
-      ? `All task types · ${typeTotal}`
-      : typeSel.length === 1
-        ? `${typeSel[0]} · ${rows.length}`
-        : `${typeSel.length} task types · ${rows.length}`
+  const open = (t: Task) => {
+    const path = taskPath(t)
+    if (path) navigate(path)
+    else setDetailsId(t.id)
+  }
+  const star = (t: Task) => {
+    const next = !isPriority(t)
+    toggleStar(t)
+    showToast(next ? 'Marked as priority' : 'Removed from priority')
+  }
 
   return (
     <AppShell crumbs={[{ label: 'Tasks' }]} search={{ value: filters.query, onChange: (q) => update((f) => ({ ...f, query: q })) }}>
@@ -198,7 +221,7 @@ export default function TaskQueue() {
 
         {/* Toolbar */}
         <div className="flex items-center gap-[10px] [&>*]:shrink-0 [&>div]:shrink">
-          <label className="flex h-9 w-[286px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] focus-within:border-[#a3a3a3]">
+          <label className="flex h-9 w-[260px] items-center gap-2 rounded-lg border border-[#e5e5e5] px-[13px] focus-within:border-[#a3a3a3]">
             <Search className="size-3.5 text-[#a3a3a3]" />
             <input
               value={filters.query}
@@ -213,18 +236,36 @@ export default function TaskQueue() {
             )}
           </label>
 
-          {/* Filters: every column filter in one place */}
+          {/* Filters: every filter in one place, Priority first */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <ToolbarButton active={activeColCount > 0}>
+              <ToolbarButton active={activeFilterCount > 0}>
                 <SlidersHorizontal className="size-3.5" /> Filters
-                {activeColCount > 0 && (
-                  <span className="ml-0.5 rounded-full bg-[#171717] px-1.5 text-[11px] leading-[18px] text-white">{activeColCount}</span>
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 rounded-full bg-[#171717] px-1.5 text-[11px] leading-[18px] text-white">{activeFilterCount}</span>
                 )}
               </ToolbarButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[200px]">
-              {FILTER_COLS.map((c) => (
+            <DropdownMenuContent align="start" className="w-[210px]">
+              <DropdownMenuCheckboxItem
+                checked={filters.priority}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={(v) => update((f) => ({ ...f, priority: !!v }))}
+                className="text-[13px]"
+              >
+                <Star className={cn('size-3.5', filters.priority ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-[#737373]')} />
+                <span className="flex-1">Priority</span>
+                <span className="text-[11.5px] text-[#a3a3a3] tabular-nums">{priorityCount}</span>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="text-[13px]">
+                  <span className="flex-1">Task type</span>
+                  {typeSel && <span className="text-[11.5px] text-[#737373]">1</span>}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-[240px] p-[5px]">{typeMenu}</DropdownMenuSubContent>
+              </DropdownMenuSub>
+              {PICKER_COLS.map((c) => (
                 <DropdownMenuSub key={c}>
                   <DropdownMenuSubTrigger className="text-[13px]">
                     <span className="flex-1">{COL_LABEL[c]}</span>
@@ -235,10 +276,10 @@ export default function TaskQueue() {
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               ))}
-              {activeColCount > 0 && (
+              {activeFilterCount > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-[13px]" onSelect={() => update((f) => ({ ...f, cols: emptyCols() }))}>
+                  <DropdownMenuItem className="text-[13px]" onSelect={() => update((f) => ({ ...f, priority: false, cols: emptyCols() }))}>
                     Clear all filters
                   </DropdownMenuItem>
                 </>
@@ -246,31 +287,27 @@ export default function TaskQueue() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Task type dropdown, single pick */}
+          {/* Task type dropdown: the one task type filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <ToolbarButton>
-                {dropdownLabel}
+              <ToolbarButton active={!!typeSel}>
+                {typeSel && <TypeDot type={typeSel} />}
+                {typeSel ? `${typeSel} · ${facets.type.get(typeSel) ?? 0}` : `All task types · ${typeTotal}`}
                 <ChevronDown className="size-3.5" />
               </ToolbarButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[240px] p-[5px]">
-              <TypeItem selected={typeSel.length === 0} count={typeTotal} onSelect={() => setCol('type', [])}>
-                <span className="text-[13px]">All task types</span>
-              </TypeItem>
-              <DropdownMenuSeparator />
-              {TASK_TYPES.map((t) => (
-                <TypeItem key={t} selected={typeSel.length === 1 && typeSel[0] === t} count={facets.type.get(t) ?? 0} onSelect={() => setCol('type', [t])}>
-                  <TaskTypeChip type={t} />
-                </TypeItem>
-              ))}
+              {typeMenu}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Active filter chips: one line that scrolls sideways, so the table never jumps while a picker is open */}
+          <PriorityPanel tasks={tasks} />
+
+          {/* Active filter chips: one line, so the table never jumps while a picker is open */}
           <div className="flex min-w-0 items-center gap-[10px] overflow-x-auto [scrollbar-width:none]">
             {filters.card && <FilterChip label={CARD_LABEL[filters.card]} onRemove={() => update((f) => ({ ...f, card: null }))} />}
-            {FILTER_COLS.filter((c) => filters.cols[c].length).map((c) => (
+            {filters.priority && <FilterChip label="Priority" onRemove={() => update((f) => ({ ...f, priority: false }))} />}
+            {PICKER_COLS.filter((c) => filters.cols[c].length).map((c) => (
               <FilterChip
                 key={c}
                 label={`${COL_LABEL[c]}: ${options[c]
@@ -281,13 +318,12 @@ export default function TaskQueue() {
               />
             ))}
           </div>
-          {(filters.card || activeColCount > 0) && (
+          {(filters.card || filters.priority || PICKER_COLS.some((c) => filters.cols[c].length)) && (
             <button onClick={clearAll} className="h-[35px] px-1.5 text-[13px] whitespace-nowrap text-[#525252] hover:text-[#0a0a0a] hover:underline">
               Clear all
             </button>
           )}
           <div className="flex-1" />
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <ToolbarButton active={hidden.size > 0}>
@@ -317,40 +353,47 @@ export default function TaskQueue() {
           </DropdownMenu>
         </div>
 
-        {/* Task type tabs, kept in sync with the Task type filter */}
-        <div className="flex items-end gap-6 border-b border-[#e5e5e5]">
-          <TypeTab label="All" count={typeTotal} active={typeSel.length === 0} onClick={() => setCol('type', [])} />
-          {TASK_TYPES.map((t) => (
-            <TypeTab
-              key={t}
-              label={t}
-              count={facets.type.get(t) ?? 0}
-              active={typeSel.length === 1 && typeSel[0] === t}
-              onClick={() => setCol('type', [t])}
-            />
-          ))}
-        </div>
-
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-[#e5e5e5]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] border-collapse text-[12.5px] text-[#262626]">
               <thead>
                 <tr className="h-11 border-b border-[#e5e5e5] bg-[#fafafa] text-left text-[#0a0a0a]">
+                  <th className="w-[40px] pl-[14px]" aria-label="Priority" />
                   {show('sla') && (
-                    <Th className="w-[172px]">
+                    <Th className="w-[168px] pl-1">
                       <button className="flex items-center gap-1.5" onClick={() => setSlaAsc((v) => !v)} title="Sort by time left">
                         SLA {slaAsc ? <ArrowUp className="size-[13px]" /> : <ArrowDown className="size-[13px]" />}
                       </button>
                     </Th>
                   )}
                   {show('type') && (
-                    <Th className="w-[170px]" filter={<ColumnFilter {...filterProps('type')} />}>
+                    <Th
+                      className="w-[170px]"
+                      filter={
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              aria-label="Filter Task type"
+                              className={cn(
+                                'flex size-6 items-center justify-center rounded-md',
+                                typeSel ? 'bg-[#171717] text-white' : 'text-[#a3a3a3] hover:bg-black/5 hover:text-[#525252]',
+                              )}
+                            >
+                              <ListFilter className="size-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-[240px] p-[5px]">
+                            {typeMenu}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      }
+                    >
                       Task Type
                     </Th>
                   )}
                   {show('room') && (
-                    <Th className="w-[125px]" filter={<ColumnFilter {...filterProps('room')} />}>
+                    <Th className="w-[122px]" filter={<ColumnFilter {...filterProps('room')} />}>
                       Room Type
                     </Th>
                   )}
@@ -366,11 +409,11 @@ export default function TaskQueue() {
                     </Th>
                   )}
                   {show('assignee') && (
-                    <Th className="w-[150px]" filter={<ColumnFilter {...filterProps('assignee')} />}>
+                    <Th className="w-[140px]" filter={<ColumnFilter {...filterProps('assignee')} />}>
                       Assigned to
                     </Th>
                   )}
-                  <Th className="w-[138px]" />
+                  <Th className="w-[136px]" />
                 </tr>
               </thead>
               <tbody>
@@ -380,8 +423,11 @@ export default function TaskQueue() {
                     task={t}
                     now={now}
                     show={show}
+                    priority={isPriority(t)}
+                    onStar={() => star(t)}
                     onAssign={(id) => reassign(t, id)}
-                    onOpen={() => setDetailsId(t.id)}
+                    onOpen={() => open(t)}
+                    onDetails={() => setDetailsId(t.id)}
                     onClaim={() => claim(t)}
                     onUnclaim={() => unclaim(t)}
                     onCopy={copy}
@@ -389,9 +435,9 @@ export default function TaskQueue() {
                 ))}
                 {pageRows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="h-32 text-center text-[#737373]">
+                    <td colSpan={9} className="h-32 text-center text-[#737373]">
                       No tasks match these filters.{' '}
-                      <button onClick={() => update(() => ({ card: null, query: '', cols: emptyCols() }))} className="underline">
+                      <button onClick={() => update(emptyFilters)} className="underline">
                         Clear filters and search
                       </button>
                     </td>
@@ -443,10 +489,6 @@ export default function TaskQueue() {
       </div>
 
       <TaskDetails task={tasks.find((t) => t.id === detailsId) ?? null} onClose={() => setDetailsId(null)} />
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>
-      )}
     </AppShell>
   )
 }
@@ -455,8 +497,11 @@ function Row({
   task: t,
   now,
   show,
+  priority,
+  onStar,
   onAssign,
   onOpen,
+  onDetails,
   onClaim,
   onUnclaim,
   onCopy,
@@ -464,8 +509,11 @@ function Row({
   task: Task
   now: number
   show: (k: ShowKey) => boolean
+  priority: boolean
+  onStar: () => void
   onAssign: (id: string | null) => void
   onOpen: () => void
+  onDetails: () => void
   onClaim: () => void
   onUnclaim: () => void
   onCopy: (label: string, value: string) => void
@@ -473,14 +521,24 @@ function Row({
   const mins = minutesLeft(t.dueAt, now)
   const overdue = slaState(mins) === 'overdue'
   const claimedByMe = t.claimedById === currentUserId
-  const claimer = personById(t.claimedById)
   return (
     <tr
       onDoubleClick={onOpen}
       className={cn('h-[42px] border-b border-[#f0f0f0] last:border-b-0', overdue ? 'bg-[#fef2f2] hover:bg-[#fde8e8]' : 'hover:bg-[#fafafa]')}
     >
+      <td className="pl-[12px]">
+        <button
+          onClick={onStar}
+          onDoubleClick={(e) => e.stopPropagation()}
+          aria-label={priority ? 'Remove priority' : 'Mark as priority'}
+          aria-pressed={priority}
+          className="flex size-7 items-center justify-center rounded-md hover:bg-black/5"
+        >
+          <Star className={cn('size-4', priority ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-[#c4c4c4]')} />
+        </button>
+      </td>
       {show('sla') && (
-        <Td>
+        <Td className="pl-1">
           <SlaPill mins={mins} />
         </Td>
       )}
@@ -505,40 +563,20 @@ function Row({
       )}
       {show('assignee') && (
         <td className="px-[10px]">
-          <div className="flex items-center gap-1">
-            <AssigneeCell assigneeId={t.assigneeId} onChange={onAssign} />
-            {t.status === 'In review' && t.sentById && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="rounded-[5px] border border-[#a3a3a3] px-1.5 text-[10.5px] leading-[16px] font-medium text-[#262626]">Review</span>
-                </TooltipTrigger>
-                <TooltipContent>Sent for review by {personById(t.sentById)?.name}</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <AssigneeCell assigneeId={t.assigneeId} onChange={onAssign} />
         </td>
       )}
       <td className="pr-[14px] pl-[10px]">
         <div className="flex items-center justify-end gap-[12px] text-[#262626]">
-          {t.status !== 'Done' &&
-            (t.claimedById == null ? (
-              <button
-                onClick={onClaim}
-                onDoubleClick={(e) => e.stopPropagation()}
-                className="flex h-[26px] items-center gap-1.5 rounded-[7px] border border-[#e5e5e5] bg-white px-2.5 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
-              >
-                <Hand className="size-3.5" /> Claim
-              </button>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex h-[26px] items-center gap-1.5 px-1 text-[12px] text-[#737373]">
-                    <UserRoundCheck className="size-3.5" /> {claimedByMe ? 'Yours' : 'Claimed'}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Claimed by {claimer?.name ?? 'someone'}</TooltipContent>
-              </Tooltip>
-            ))}
+          {t.status !== 'Done' && t.claimedById == null && (
+            <button
+              onClick={onClaim}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="flex h-[26px] items-center gap-1.5 rounded-[7px] border border-[#e5e5e5] bg-white px-2.5 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
+            >
+              <Hand className="size-3.5" /> Claim
+            </button>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button onClick={onOpen} className="rounded p-0.5 hover:bg-black/5" aria-label="Open task">
@@ -555,13 +593,11 @@ function Row({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[190px]">
               <DropdownMenuItem className="text-[13px]" onSelect={onOpen}>
-                Open task details
+                Open task
               </DropdownMenuItem>
-              {t.status !== 'Done' && t.claimedById == null && (
-                <DropdownMenuItem className="text-[13px]" onSelect={onClaim}>
-                  Claim task
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem className="text-[13px]" onSelect={onDetails}>
+                Task details
+              </DropdownMenuItem>
               {claimedByMe && t.status !== 'Done' && (
                 <DropdownMenuItem className="text-[13px]" onSelect={onUnclaim}>
                   Release claim
@@ -613,12 +649,13 @@ function TaskDetails({ task, onClose }: { task: Task | null; onClose: () => void
               <Field icon={Hash} label="Claim ID" value={task.claimId} />
               <Field icon={Building2} label="Organization" value={task.org} />
               <Field icon={User} label="Assigned To" value={assignee ? `${assignee.name} · ${assignee.email}` : 'Unassigned'} />
-              {task.sentById && <Field icon={UserRoundCheck} label="Sent for review by" value={personById(task.sentById)?.name ?? ''} />}
               <Field icon={CalendarDays} label="Claim Opened" value={task.claimOpened} />
             </div>
-            <div className="rounded-b-xl border-t border-[#e5e5e5] bg-[#fafafa] px-4 py-2.5 text-[11.5px] text-[#737373]">
-              Opening the task itself (draw screen) is built in round 4.
-            </div>
+            {!taskPath(task) && (
+              <div className="rounded-b-xl border-t border-[#e5e5e5] bg-[#fafafa] px-4 py-2.5 text-[11.5px] text-[#737373]">
+                {task.type} task pages aren't part of this prototype.
+              </div>
+            )}
           </>
         )}
       </DialogContent>
@@ -660,10 +697,9 @@ function SummaryCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        'flex flex-col gap-3 rounded-xl px-5 pt-5 pb-[18px] text-left shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] transition-colors',
+        'flex flex-col gap-3 rounded-xl border px-5 pt-5 pb-[18px] text-left shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] transition-colors',
         // selected state from "UI TQ1 · C2 · Overdue selected": dark border + light fill
-        selected ? 'bg-[#fafafa] outline-[1.5px] outline-[#171717] outline-solid' : 'border border-[#e5e5e5] bg-white hover:border-[#d4d4d4] hover:bg-[#fcfcfc]',
-        selected && 'border border-transparent',
+        selected ? 'border-transparent bg-[#fafafa] outline-[1.5px] outline-[#171717] outline-solid' : 'border-[#e5e5e5] bg-white hover:border-[#d4d4d4] hover:bg-[#fcfcfc]',
       )}
     >
       <div className="flex w-full items-center justify-between text-[13.5px] font-medium">
@@ -698,32 +734,6 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
         <X className="size-[13px]" />
       </button>
     </span>
-  )
-}
-
-function TypeItem({ selected, count, onSelect, children }: { selected: boolean; count: number; onSelect: () => void; children: React.ReactNode }) {
-  return (
-    <DropdownMenuItem onSelect={onSelect} className={cn('py-[6px]', selected && 'bg-[#f5f5f5]')}>
-      <span className="flex-1">{children}</span>
-      <span className="text-[11.5px] text-[#a3a3a3] tabular-nums">{count}</span>
-      <Check className={cn('size-3.5', !selected && 'invisible')} />
-    </DropdownMenuItem>
-  )
-}
-
-function TypeTab({ label, count, active, onClick }: { label: TaskType | 'All'; count: number; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        '-mb-px flex items-center gap-1.5 border-b-2 pb-2.5 text-[13px]',
-        active ? 'border-[#171717] font-medium text-[#0a0a0a]' : 'border-transparent text-[#737373] hover:text-[#262626]',
-      )}
-    >
-      {label}
-      <span className={cn('text-[11.5px] tabular-nums', active ? 'text-[#737373]' : 'text-[#a3a3a3]')}>{count}</span>
-    </button>
   )
 }
 
