@@ -54,7 +54,7 @@ export function ClaimerCell({ claimedById }: { claimedById: string | null }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <span className="inline-flex py-1 pl-1" tabIndex={0}>
-          <Avatar person={person} outline addIcon={false} />
+          <Avatar person={person} outline />
         </span>
       </TooltipTrigger>
       <TooltipContent side="top">{person ? `Claimed by ${person.name}` : 'Not claimed yet'}</TooltipContent>
@@ -93,42 +93,51 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
         </TooltipTrigger>
         <TooltipContent side="top">{person ? person.name : 'Click to assign'}</TooltipContent>
       </Tooltip>
+      {/* Standard dropdown: opens right under the circle, lined up with its right edge so it stays over the table (above it only near the bottom of the screen),
+          fixed height with the list scrolling under a sticky search box. */}
       <PopoverContent
-        align="start"
+        side="bottom"
+        align="end"
+        sideOffset={6}
         collisionPadding={12}
-        className="max-h-[var(--radix-popover-content-available-height)] w-[260px] overflow-y-auto p-[7px]"
+        className="flex max-h-[min(360px,var(--radix-popover-content-available-height))] w-[280px] flex-col gap-0 overflow-hidden p-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex h-[34px] items-center gap-2 rounded-md border border-[#e5e5e5] px-[11px]">
-          <Search className="size-3.5 text-[#a3a3a3]" />
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="w-full bg-transparent text-[13px] outline-none placeholder:text-[#a3a3a3]"
-          />
+        <div className="border-b border-[#e5e5e5] p-2">
+          <div className="flex h-9 items-center gap-2 rounded-md border border-[#e5e5e5] px-3 focus-within:border-[#a3a3a3]">
+            <Search className="size-4 text-[#a3a3a3]" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search people…"
+              className="w-full bg-transparent text-[13.5px] outline-none placeholder:text-[#a3a3a3]"
+            />
+          </div>
         </div>
-        <Item onClick={() => pick(me.id)} selected={assigneeId === me.id}>
-          <Avatar person={me} />
-          <span className="text-[13px]">Assign to me</span>
-        </Item>
-        <div className="my-[2px] h-px bg-[#e5e5e5]" />
-        <div className="px-2 pt-1 pb-[6px] text-[11.5px] font-medium text-[#737373]">People</div>
-        {list.map((p) => (
-          <Item key={p.id} onClick={() => pick(p.id)} selected={assigneeId === p.id}>
-            <Avatar person={p} />
-            <span className="min-w-0">
-              <span className="block text-[13px] text-[#0a0a0a]">{p.name}</span>
-              <span className="block truncate text-[11.5px] text-[#737373]">{p.email}</span>
-            </span>
+        <div className="min-h-0 flex-1 overflow-y-auto p-[6px]">
+          <Item onClick={() => pick(me.id)} selected={assigneeId === me.id}>
+            <Avatar person={me} outline />
+            <span className="text-[13px]">Assign to me</span>
           </Item>
-        ))}
-        <div className="my-[2px] h-px bg-[#e5e5e5]" />
-        <Item onClick={() => pick(null)} selected={assigneeId == null}>
-          <Avatar person={null} />
-          <span className="text-[13px]">Unassigned</span>
-        </Item>
+          <div className="my-[4px] h-px bg-[#e5e5e5]" />
+          <div className="px-2 pt-1 pb-[4px] text-[11.5px] font-medium text-[#737373]">People</div>
+          {list.map((p) => (
+            <Item key={p.id} onClick={() => pick(p.id)} selected={assigneeId === p.id}>
+              <Avatar person={p} outline />
+              <span className="min-w-0">
+                <span className="block text-[13px] text-[#0a0a0a]">{p.name}</span>
+                <span className="block truncate text-[11.5px] text-[#737373]">{p.email}</span>
+              </span>
+            </Item>
+          ))}
+          {list.length === 0 && <div className="px-2 py-2 text-[12.5px] text-[#737373]">No one matches.</div>}
+          <div className="my-[4px] h-px bg-[#e5e5e5]" />
+          <Item onClick={() => pick(null)} selected={assigneeId == null}>
+            <Avatar person={null} />
+            <span className="text-[13px]">Unassigned</span>
+          </Item>
+        </div>
       </PopoverContent>
     </Popover>
   )
