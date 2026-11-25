@@ -371,8 +371,9 @@ export default function DamageLabeling() {
 
             {review && (
               <div className="flex gap-5 border-b border-[#e5e5e5]">
-                <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" count={photo.labels.length} />
-                <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Notes" count={replied ? 2 : 1} />
+                <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
+                {/* Notes counts the notes in the thread: yours, plus the reply once it arrives */}
+                <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Notes" count={1 + (replied ? 1 : 0)} />
               </div>
             )}
 
@@ -572,14 +573,14 @@ function Note({ person, when, text }: { person: ReturnType<typeof personById>; w
   )
 }
 
-function PanelTab({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+function PanelTab({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count?: number }) {
   return (
     <button
       onClick={onClick}
       className={cn('-mb-px flex gap-[5px] border-b-2 pb-2 text-[13px]', active ? 'border-[#0a0a0a] font-semibold' : 'border-transparent text-[#737373]')}
     >
       {label}
-      <span className="text-[12px] font-normal text-[#a3a3a3]">{count}</span>
+      {count != null && <span className="text-[12px] font-normal text-[#a3a3a3]">{count}</span>}
     </button>
   )
 }
