@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { AppShell } from '@/components/portal/AppShell'
-import { AssigneeCell } from '@/components/portal/assignee'
+import { AssigneeCell, ClaimerCell } from '@/components/portal/assignee'
 import { SlaPill, TaskStatusChip, TaskTypeChip } from '@/components/portal/chips'
 import { ColumnFilter } from '@/components/portal/FilterPicker'
 import { FiltersPanel } from '@/components/portal/FiltersPanel'
@@ -520,7 +520,6 @@ function Row({
   const mins = minutesLeft(t.dueAt, now)
   const overdue = slaState(mins) === 'overdue'
   const claimedByMe = t.claimedById === currentUserId
-  const claimer = personById(t.claimedById)
   return (
     <tr
       // The whole row opens the task. Buttons in the row (star, Claim, assignee, menu) keep their own
@@ -578,15 +577,9 @@ function Row({
         </Td>
       )}
       {show('claimed') && (
-        // Claimed by: plain names, as in the production table; "--" when nobody has picked it up
+        // Claimed by: initials like Assigned to, full name on hover; an empty dashed circle when nobody has picked it up
         <Td>
-          {claimer ? (
-            <span className="block max-w-[110px] truncate" title={claimer.name}>
-              {claimer.short}
-            </span>
-          ) : (
-            <span className="text-[#a3a3a3]">--</span>
-          )}
+          <ClaimerCell claimedById={t.claimedById} />
         </Td>
       )}
       {show('assignee') && (

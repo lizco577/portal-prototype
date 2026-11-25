@@ -55,7 +55,7 @@ export const TASK_LIST_CHANGES: Change[] = [
     code: 'D7',
     title: 'Claimed by and Assigned to',
     kind: 'Changed',
-    detail: 'Two columns: Claimed by shows who picked the task up. Assigned to shows coloured initials, with the full name on hover. Both can be filtered.',
+    detail: 'Two columns: Claimed by shows who picked the task up, Assigned to who it is with now. Both show initials in a white circle, with the full name on hover. An empty dashed circle means nobody. Both can be filtered.',
     target: 'assignee-header',
   },
   {

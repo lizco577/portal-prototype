@@ -5,27 +5,56 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
-export function Avatar({ person, size = 24 }: { person: Person | null; size?: number }) {
+/**
+ * Initials in a circle. `outline` is the task list style: white with a grey border and dark initials.
+ * With no person it's an empty dashed circle; `addIcon` puts the add-person icon in it.
+ */
+export function Avatar({
+  person,
+  size = 24,
+  outline,
+  addIcon = true,
+}: {
+  person: Person | null
+  size?: number
+  outline?: boolean
+  addIcon?: boolean
+}) {
   if (!person)
     return (
       <span
-        className="inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] text-[#a3a3a3]"
+        className="inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] bg-white text-[#a3a3a3]"
         style={{ width: size, height: size }}
       >
-        <UserPlus className="size-3" />
+        {addIcon && <UserPlus className="size-3" />}
       </span>
     )
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
-      style={{ width: size, height: size, background: person.color, color: person.text }}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold', outline && 'border border-[#d4d4d4] bg-white text-[#404040]')}
+      style={{ width: size, height: size, ...(outline ? {} : { background: person.color, color: person.text }) }}
     >
       {initials(person)}
     </span>
   )
 }
 
-/** "Assigned to" cell: coloured initials, full name on hover (like Jira), click to reassign. */
+/** "Claimed by" cell: initials only, full name on hover. Read-only. */
+export function ClaimerCell({ claimedById }: { claimedById: string | null }) {
+  const person = personById(claimedById)
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex py-1 pl-1" tabIndex={0}>
+          <Avatar person={person} outline addIcon={false} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top">{person ? `Claimed by ${person.name}` : 'Not claimed yet'}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** "Assigned to" cell: initials in a white circle, full name on hover (like Jira), click to reassign. */
 export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | null; onChange: (id: string | null) => void }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -50,8 +79,7 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
               onDoubleClick={(e) => e.stopPropagation()}
               className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 text-[12.5px] text-[#262626] hover:bg-black/[0.04]"
             >
-              <Avatar person={person} />
-              {!person && <span className="text-[#737373]">Unassigned</span>}
+              <Avatar person={person} outline />
             </button>
           </PopoverTrigger>
         </TooltipTrigger>
