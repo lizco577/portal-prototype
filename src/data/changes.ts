@@ -90,7 +90,7 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     code: 'L5',
     title: 'Finish labeling',
     kind: 'Changed',
-    detail: '"Complete" renamed to "Finish labeling", next to "No damage" and "Next photo". The bar stays fixed and the same under both tabs.',
+    detail: '"Complete" renamed to "Finish labeling", next to one "No damage, next photo" button that reads "Next photo" once the photo has labels. The bar stays fixed and the same under both tabs.',
     target: 'photo-buttons',
   },
   {
@@ -98,7 +98,7 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     code: 'L6',
     title: 'Review',
     kind: 'New',
-    detail: 'A Review tab next to Labels replaces the Send for review modal. Pick a teammate, then ask your question: sending it asks them and puts the task in their My Tasks. Replies are a comment thread; a reply can be resolved. A blue dot on Review means something new. Use Review state above to see each state.',
+    detail: 'A Review tab next to Labels replaces the Send for review modal. Pick a teammate, then ask your question: sending it asks them and puts the task in their My Tasks. Replies are a comment thread; a reply can be resolved. A number on Review counts new comments since you last looked. Use Review state above to see each state.',
     target: 'review-tab',
     opens: 'click',
   },

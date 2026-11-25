@@ -18,7 +18,7 @@ export type Review = {
   askedById: string | null
   askedAt: number | null
   items: ReviewItem[]
-  /** something new for me on the Review tab (blue dot) */
+  /** something new for me on the Review tab (count badge) */
   unread: boolean
 }
 
@@ -39,6 +39,19 @@ export function reviewStage(r: Review): ReviewStage {
     return replied ? 4 : 2
   }
   return 1
+}
+
+/** How many comments from others came in after my last one; shown on the Review tab while unread. */
+export function unreadCount(r: Review): number {
+  if (!r.unread) return 0
+  let n = 0
+  for (let i = r.items.length - 1; i >= 0; i--) {
+    const it = r.items[i]
+    if (it.kind !== 'comment') continue
+    if (it.authorId === currentUserId) break
+    n++
+  }
+  return Math.max(n, 1)
 }
 
 /** When the reviewer last replied, for "Replied 1m ago". */

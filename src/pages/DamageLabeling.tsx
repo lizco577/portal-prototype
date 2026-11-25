@@ -24,6 +24,7 @@ import { ReviewPanel, ReviewStateSwitcher } from '@/components/portal/ReviewPane
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
 import { DAMAGE_LABELING_CHANGES } from '@/data/changes'
+import { unreadCount } from '@/data/reviews'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -146,18 +147,11 @@ export default function DamageLabeling() {
     if (target >= 0) goTo(target)
     else if (index < photos.length - 1) goTo(index + 1)
   }
-  // "No damage": this photo is done with nothing on it.
-  const markNoDamage = () => {
-    updatePhoto((p) => ({ ...p, done: true, noDamage: true }))
-    showToast(`Photo ${index + 1} marked as no damage`)
-    goToNextOpen()
-  }
-  // "Next photo": a photo with labels counts as done; one without is just skipped for now.
+  // One button: with labels the photo is done; with none it's marked as no damage. Then on to the next open photo.
   const nextPhoto = () => {
-    if (photo.labels.length) {
-      updatePhoto((p) => ({ ...p, done: true, noDamage: false }))
-      showToast(`Photo ${index + 1} done`)
-    }
+    const hasLabels = photo.labels.length > 0
+    updatePhoto((p) => ({ ...p, done: true, noDamage: !hasLabels }))
+    showToast(hasLabels ? `Photo ${index + 1} done` : `Photo ${index + 1} marked as no damage`)
     goToNextOpen()
   }
   const finish = () => {
@@ -372,7 +366,7 @@ export default function DamageLabeling() {
             {/* Two tabs, always there. The dot means something new on Review. */}
             <div className="flex gap-5 border-b border-[#e5e5e5]">
               <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
-              <PanelTab active={tab === 'review'} onClick={openReview} label="Review" dot={review.unread} dataChange="review-tab" />
+              <PanelTab active={tab === 'review'} onClick={openReview} label="Review" count={unreadCount(review)} dataChange="review-tab" />
             </div>
           </div>
 
@@ -449,17 +443,13 @@ export default function DamageLabeling() {
           {/* Fixed action bar: the same under both tabs, as in "UI DL · Draw · L5" */}
           <div className="flex gap-2 border-t border-[#e5e5e5] px-[14px] py-3" data-change="photo-buttons">
             <button
-              onClick={markNoDamage}
-              disabled={photo.labels.length > 0}
-              className="h-[34px] flex-1 rounded-[8px] border border-[#e5e5e5] bg-white px-3 text-[12.5px] font-medium whitespace-nowrap text-[#171717] hover:bg-[#fafafa] disabled:pointer-events-none disabled:text-[#a3a3a3]"
-            >
-              No damage
-            </button>
-            <button
               onClick={nextPhoto}
-              className="h-[34px] flex-1 rounded-[8px] border border-[#e5e5e5] bg-white px-3 text-[12.5px] font-medium whitespace-nowrap text-[#171717] hover:bg-[#fafafa]"
+              className={cn(
+                'h-[34px] flex-1 rounded-[8px] px-3 text-[12.5px] font-medium whitespace-nowrap',
+                photo.labels.length ? 'border border-[#e5e5e5] bg-white text-[#171717] hover:bg-[#fafafa]' : 'bg-[#171717] text-white hover:bg-[#262626]',
+              )}
             >
-              Next photo
+              {photo.labels.length ? 'Next photo' : 'No damage, next photo'}
             </button>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -484,7 +474,7 @@ export default function DamageLabeling() {
   )
 }
 
-function PanelTab({ active, onClick, label, dot, dataChange }: { active: boolean; onClick: () => void; label: string; dot?: boolean; dataChange?: string }) {
+function PanelTab({ active, onClick, label, count, dataChange }: { active: boolean; onClick: () => void; label: string; count?: number; dataChange?: string }) {
   return (
     <button
       onClick={onClick}
@@ -492,7 +482,11 @@ function PanelTab({ active, onClick, label, dot, dataChange }: { active: boolean
       className={cn('-mb-px flex items-center gap-[6px] border-b-2 pb-2 text-[13px]', active ? 'border-[#0a0a0a] font-semibold' : 'border-transparent text-[#737373]')}
     >
       {label}
-      {dot && <span aria-label="New" className="size-1.5 rounded-full bg-[#2563eb]" />}
+      {!!count && (
+        <span aria-label={`${count} new`} className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2563eb] px-1 text-[10.5px] font-semibold leading-none text-white tabular-nums">
+          {count}
+        </span>
+      )}
     </button>
   )
 }
