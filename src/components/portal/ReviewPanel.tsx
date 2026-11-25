@@ -6,7 +6,6 @@ import {
   CircleCheck,
   Clock,
   Paperclip,
-  Pencil,
   Search,
   UserRoundMinus,
   UserRoundPlus,
@@ -138,14 +137,6 @@ export function ReviewPanel({ taskId }: { taskId: string }) {
             )}
             <span className="min-w-0 flex-1" />
             <span className="-mr-1 flex shrink-0">
-              <ReviewerPicker
-                selectedId={reviewer.id}
-                onPick={(id) => setReviewer(taskId, id)}
-              >
-                <IconButton label="Change reviewer">
-                  <Pencil className="size-3" />
-                </IconButton>
-              </ReviewerPicker>
               <IconButton
                 label="Remove reviewer"
                 onClick={() => setReviewer(taskId, null)}
