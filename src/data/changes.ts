@@ -96,9 +96,9 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
   {
     id: 'l6',
     code: 'L6',
-    title: 'Notes and review',
+    title: 'Comments and review',
     kind: 'New',
-    detail: 'Notes are always on the task, in a plain comment box. Click into it to add a note, or pick a teammate to ask them to review: the task goes In review, and a one-line banner says when it has been reviewed. "Not sure? Send for review" jumps here.',
+    detail: 'Notes are now Comments, always on the task. Click into the box to add a comment, or pick a teammate to ask them to review: the task goes In review, and a one-line banner says when it has been reviewed. "Not sure? Send for review" jumps here.',
     target: 'send-for-review',
     opens: 'send-for-review',
   },

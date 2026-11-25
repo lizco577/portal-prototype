@@ -51,7 +51,7 @@ export default function DamageLabeling() {
   const [zoom, setZoom] = useState(1)
   const [redo, setRedo] = useState<Label[]>([])
   const [tab, setTab] = useState<'labels' | 'notes'>('labels')
-  // Set by "Not sure? Send for review": opens Notes with the note box focused, once
+  // Set by "Not sure? Send for review": opens Comments with the comment box focused, once
   const [askReview, setAskReview] = useState(false)
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const photoRef = useRef<HTMLDivElement>(null)
@@ -377,7 +377,7 @@ export default function DamageLabeling() {
             {/* Notes is always here; it's also where you ask a teammate to review */}
             <div className="flex gap-5 border-b border-[#e5e5e5]">
               <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
-              <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Notes" count={taskNotes.length || undefined} />
+              <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Comments" count={taskNotes.length || undefined} />
             </div>
 
             {tab === 'notes' ? (
@@ -387,7 +387,7 @@ export default function DamageLabeling() {
                 onAskHandled={() => setAskReview(false)}
                 onSend={(text, reviewerId) => {
                   addNote(id, text, reviewerId)
-                  showToast(reviewerId ? `Asked ${personById(reviewerId)?.name} to review` : 'Note added')
+                  showToast(reviewerId ? `Asked ${personById(reviewerId)?.name} to review` : 'Comment added')
                 }}
               />
             ) : photo.labels.length === 0 ? (
@@ -495,7 +495,7 @@ export default function DamageLabeling() {
   )
 }
 
-/** One line: review requested, then reviewed. The conversation itself lives in Notes. */
+/** One line: review requested, then reviewed. The conversation itself lives in Comments. */
 function ReviewBanner({ reviewed, name, onDismiss, onOpen }: { reviewed: boolean; name: string; onDismiss: () => void; onOpen: () => void }) {
   return (
     <div
@@ -588,7 +588,7 @@ function NotesPanel({
         </div>
       )}
 
-      {/* Add a note, like a standard comment box: the actions show once you start writing */}
+      {/* Add a comment, like a standard comment box: the actions show once you start writing */}
       <div
         onFocus={() => setFocused(true)}
         onBlur={(e) => {
@@ -604,7 +604,7 @@ function NotesPanel({
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
           }}
           rows={expanded ? 3 : 1}
-          placeholder={reviewer ? `What should ${reviewer.name.split(' ')[0]} look at?` : 'Add a note…'}
+          placeholder={reviewer ? `What should ${reviewer.name.split(' ')[0]} look at?` : 'Add a comment…'}
           className="resize-none bg-transparent px-[10px] py-[8px] text-[13px] leading-[1.45] outline-none placeholder:text-[#a3a3a3]"
         />
         <div className={cn('flex items-center gap-2 px-2 pb-2', !expanded && 'hidden')}>
@@ -659,7 +659,7 @@ function NotesPanel({
             disabled={!text.trim()}
             className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-[7px] bg-[#171717] px-2.5 text-[12px] font-medium whitespace-nowrap text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
           >
-            {reviewer ? 'Ask for review' : 'Add note'}
+            {reviewer ? 'Ask for review' : 'Comment'}
           </button>
         </div>
       </div>
