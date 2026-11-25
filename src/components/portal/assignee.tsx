@@ -14,16 +14,22 @@ export function Avatar({
   size = 24,
   outline,
   addIcon = true,
+  hoverable,
 }: {
   person: Person | null
   size?: number
   outline?: boolean
   addIcon?: boolean
+  /** inside a button with class "group": the border darkens on hover and focus, no background square */
+  hoverable?: boolean
 }) {
   if (!person)
     return (
       <span
-        className="inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] bg-white text-[#a3a3a3]"
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-[#d4d4d4] bg-white text-[#a3a3a3]',
+          hoverable && 'transition-colors group-hover:border-[#737373] group-hover:text-[#525252] group-focus-visible:border-[#737373]',
+        )}
         style={{ width: size, height: size }}
       >
         {addIcon && <UserPlus className="size-3" />}
@@ -31,7 +37,9 @@ export function Avatar({
     )
   return (
     <span
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold', outline && 'border border-[#d4d4d4] bg-white text-[#404040]')}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold', outline && 'border border-[#d4d4d4] bg-white text-[#404040]',
+        hoverable && 'transition-colors group-hover:border-[#737373] group-focus-visible:border-[#737373]',
+      )}
       style={{ width: size, height: size, ...(outline ? {} : { background: person.color, color: person.text }) }}
     >
       {initials(person)}
@@ -77,9 +85,9 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
             <button
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 text-[12.5px] text-[#262626] hover:bg-black/[0.04]"
+              className="group flex items-center rounded-full py-1 pl-1 text-[12.5px] text-[#262626] outline-none"
             >
-              <Avatar person={person} outline />
+              <Avatar person={person} outline hoverable />
             </button>
           </PopoverTrigger>
         </TooltipTrigger>
