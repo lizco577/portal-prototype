@@ -156,7 +156,14 @@ export function AppShell({
       {/* What's changed: full-height column on the right, like the left nav. The page shrinks instead of being covered. */}
       {hasChanges && changesOpen && <ChangesPanel changes={changes!} top={annotations} />}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>
+        // Toasts: bottom-right corner, white with black text
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-5 bottom-5 z-[60] max-w-[360px] rounded-lg border border-[#e5e5e5] bg-white px-4 py-3 text-[13px] text-[#0a0a0a] shadow-[0px_8px_24px_rgba(0,0,0,0.12)]"
+        >
+          {toast}
+        </div>
       )}
     </div>
   )
