@@ -308,7 +308,7 @@ function Photo({
           </TooltipTrigger>
           <TooltipContent side="left" className="flex-col items-start gap-0.5">
             <div className="font-medium">Auto-passed</div>
-            <div className="opacity-80">{p.confidence}% model confidence (threshold 99.6%)</div>
+            <div className="text-[#737373]">{p.confidence}% model confidence (threshold 99.6%)</div>
           </TooltipContent>
         </Tooltip>
       )}
