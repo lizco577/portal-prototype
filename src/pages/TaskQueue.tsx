@@ -280,7 +280,7 @@ export default function TaskQueue() {
                 onCheckedChange={(v) => update((f) => ({ ...f, priority: !!v }))}
                 className="text-[13px]"
               >
-                <Star className={cn('size-3.5', filters.priority ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-[#737373]')} />
+                <Star className={cn('size-3.5', filters.priority ? 'fill-[#171717] text-[#171717]' : 'text-[#737373]')} />
                 <span className="flex-1">Priority</span>
                 <span className="text-[11.5px] text-[#a3a3a3] tabular-nums">{priorityCount}</span>
               </DropdownMenuCheckboxItem>
@@ -559,7 +559,7 @@ function Row({
           aria-pressed={priority}
           className="flex size-7 items-center justify-center rounded-md hover:bg-black/5"
         >
-          <Star className={cn('size-4', priority ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-[#c4c4c4]')} />
+          <Star className={cn('size-4', priority ? 'fill-[#171717] text-[#171717]' : 'text-[#c4c4c4]')} />
         </button>
       </td>
       {show('sla') && (

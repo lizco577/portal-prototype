@@ -40,9 +40,9 @@ export function PriorityPanel({ tasks }: { tasks: Task[] }) {
                 role="switch"
                 aria-checked={on}
                 onClick={() => toggleOrgPriority(org)}
-                className={cn('flex items-center gap-[10px] rounded-md px-2 py-[7px] text-left hover:bg-[#f5f5f5]', on && 'bg-[#fffbeb]')}
+                className={cn('flex items-center gap-[10px] rounded-md px-2 py-[7px] text-left hover:bg-[#f5f5f5]', on && 'bg-[#f5f5f5]')}
               >
-                <Star className={cn('size-4', on ? 'fill-[#f59e0b] text-[#f59e0b]' : 'text-[#a3a3a3]')} />
+                <Star className={cn('size-4', on ? 'fill-[#171717] text-[#171717]' : 'text-[#a3a3a3]')} />
                 <span className="flex-1 text-[13px] text-[#171717]">{org}</span>
                 <span className="text-[11.5px] text-[#737373] tabular-nums">{open(org)} open</span>
                 <span

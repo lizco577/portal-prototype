@@ -190,15 +190,17 @@ export default function DamageLabeling() {
         <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
           <div className="flex flex-col gap-[10px] rounded-[10px] border border-[#e5e5e5] bg-white p-3">
             <div className="flex items-center gap-1">
-              {/* Pen first: drawing is the default tool when a task opens */}
-              <Tool icon={PenTool} label="Draw polygon" active={mode === 'draw'} onClick={() => setMode('draw')} />
-              <Tool icon={MousePointer2} label="Select (Esc)" active={mode === 'select'} onClick={() => (setMode('select'), setDraft([]))} />
-              <Tool
-                icon={Trash2}
-                label={selected ? 'Delete selected label' : 'Select a label to delete it'}
-                disabled={!selected}
-                onClick={() => selected && deleteLabel(selected)}
-              />
+              <div className="flex items-center gap-1" data-change="draw-tools">
+                {/* Pen first: drawing is the default tool when a task opens */}
+                <Tool icon={PenTool} label="Draw polygon" active={mode === 'draw'} onClick={() => setMode('draw')} />
+                <Tool icon={MousePointer2} label="Select (Esc)" active={mode === 'select'} onClick={() => (setMode('select'), setDraft([]))} />
+                <Tool
+                  icon={Trash2}
+                  label={selected ? 'Delete selected label' : 'Select a label to delete it'}
+                  disabled={!selected}
+                  onClick={() => selected && deleteLabel(selected)}
+                />
+              </div>
               <div className="flex-1" />
               <Tool icon={ZoomIn} label="Zoom in" disabled={zoom >= 2} onClick={() => setZoom((z) => Math.min(2, z + 0.25))} />
               <Tool icon={ZoomOut} label="Zoom out" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.25))} />
