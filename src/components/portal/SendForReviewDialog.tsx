@@ -16,7 +16,8 @@ export function SendForReviewDialog({
   onOpenChange: (o: boolean) => void
   onSend: (toId: string, note: string) => void
 }) {
-  const [toId, setToId] = useState<string>('jaguda')
+  // Starts empty: the person sending picks who reviews it
+  const [toId, setToId] = useState<string>('')
   const [note, setNote] = useState('')
   const [pickOpen, setPickOpen] = useState(false)
   const to = personById(toId)
@@ -27,7 +28,10 @@ export function SendForReviewDialog({
       open={open}
       onOpenChange={(o) => {
         onOpenChange(o)
-        if (!o) setNote('')
+        if (!o) {
+          setNote('')
+          setToId('')
+        }
       }}
     >
       <DialogContent className="w-[480px] max-w-[calc(100vw-32px)] gap-4 rounded-[12px] px-[22px] py-5 shadow-[0px_16px_40px_0px_rgba(0,0,0,0.18)] sm:max-w-[480px]">
@@ -41,8 +45,8 @@ export function SendForReviewDialog({
           <Popover open={pickOpen} onOpenChange={setPickOpen}>
             <PopoverTrigger asChild>
               <button className="flex h-[38px] items-center gap-2 rounded-[8px] border border-[#e5e5e5] px-[10px] text-left">
-                <Avatar person={to} size={22} />
-                <span className="flex-1 text-[13px]">{to?.name ?? 'Pick a teammate'}</span>
+                {to && <Avatar person={to} size={22} />}
+                <span className={cn('flex-1 text-[13px]', !to && 'text-[#a3a3a3]')}>{to?.name ?? 'Pick a teammate'}</span>
                 <ChevronDown className="size-3.5 text-[#737373]" />
               </button>
             </PopoverTrigger>
@@ -93,6 +97,7 @@ export function SendForReviewDialog({
             onClick={() => {
               onSend(toId, note.trim())
               setNote('')
+              setToId('')
             }}
             className="flex h-9 items-center gap-1.5 rounded-[8px] bg-[#171717] px-[14px] text-[13px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
           >
