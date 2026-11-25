@@ -102,14 +102,6 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     target: 'photo-buttons',
   },
   {
-    id: 'l5-photos',
-    code: 'L5',
-    title: 'Finished photos',
-    kind: 'New',
-    detail: 'Done photos show a green check in the photo strip.',
-    target: 'photo-strip',
-  },
-  {
     id: 'l6',
     code: 'L6',
     title: 'Send for review',
