@@ -185,10 +185,11 @@ export default function DamageLabeling() {
         { label: 'Draw' },
       ]}
     >
-      <div className="flex gap-4 px-[17px] pt-4 pb-6">
+      {/* Fits the window height: the photo shrinks so the photo strip and the panel buttons stay in view */}
+      <div className="flex h-full min-h-[400px] gap-4 px-[17px] pt-4 pb-4">
         {/* Canvas column */}
-        <div className="flex min-w-0 flex-1 flex-col gap-[14px]">
-          <div className="flex flex-col gap-[10px] rounded-[10px] border border-[#e5e5e5] bg-white p-3">
+        <div className="flex min-h-0 min-w-[300px] flex-1 flex-col gap-[14px]">
+          <div className="flex min-h-0 flex-1 flex-col gap-[10px] rounded-[10px] border border-[#e5e5e5] bg-white p-3">
             <div className="flex items-center gap-1">
               <div className="flex items-center gap-1" data-change="draw-tools">
                 {/* Pen first: drawing is the default tool when a task opens */}
@@ -209,7 +210,7 @@ export default function DamageLabeling() {
             </div>
 
             <div
-              className={cn('relative flex h-[470px] items-center justify-center overflow-hidden rounded-[4px] bg-black', mode === 'draw' && 'cursor-crosshair')}
+              className={cn('relative flex min-h-[200px] flex-1 items-center justify-center overflow-hidden rounded-[4px] bg-black', mode === 'draw' && 'cursor-crosshair')}
               onClick={onCanvasClick}
               onDoubleClick={() => mode === 'draw' && draft.length >= 3 && closeShape()}
               onMouseMove={(e) => mode === 'draw' && setCursor(toPoint(e))}
@@ -320,13 +321,13 @@ export default function DamageLabeling() {
               {doneCount} of {photos.length} done
             </span>
           </div>
-          <div className="flex flex-wrap gap-[14px] self-start" data-change="photo-strip">
+          <div className="flex shrink-0 gap-[14px] self-start overflow-x-auto p-[3px] -m-[3px] max-w-full" data-change="photo-strip">
             {photos.map((p, i) => (
               <button
                 key={p.id}
                 onClick={() => goTo(i)}
                 aria-label={`Photo ${i + 1}${p.done ? ', done' : ''}`}
-                className={cn('relative size-[96px] overflow-hidden rounded-[4px]', i === index && 'outline-2 outline-offset-2 outline-[#0a0a0a] outline-solid')}
+                className={cn('relative size-[96px] shrink-0 overflow-hidden rounded-[4px]', i === index && 'outline-2 outline-offset-2 outline-[#0a0a0a] outline-solid')}
                 style={{ background: p.tone }}
               >
                 {[0, 1, 2, 3, 4].map((r) => (
@@ -346,8 +347,8 @@ export default function DamageLabeling() {
         </div>
 
         {/* Label panel */}
-        <div className="flex w-[380px] shrink-0 flex-col rounded-[10px] border border-[#e5e5e5] bg-white">
-          <div className="flex flex-1 flex-col gap-[14px] px-[14px] pt-4 pb-4">
+        <div className="flex min-h-0 w-[38%] max-w-[380px] min-w-[340px] shrink-0 flex-col rounded-[10px] border border-[#e5e5e5] bg-white">
+          <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[14px] pt-4 pb-4">
             {showBanner && review && (
               <ReviewBanner
                 replied={!!replied}
@@ -359,12 +360,12 @@ export default function DamageLabeling() {
             )}
             <div className="flex flex-col gap-1 leading-normal">
               <div className="flex gap-[5px]">
-                <span className="text-[13.5px] font-semibold">Image ID:</span>
+                <span className="shrink-0 text-[13.5px] font-semibold whitespace-nowrap">Image ID:</span>
                 <span className="truncate text-[13px] text-[#262626]">{photo.imageId}</span>
               </div>
               <div className="flex gap-[5px]">
-                <span className="text-[13.5px] font-semibold">Room Description:</span>
-                <span className="text-[13px] text-[#737373]">No description provided.</span>
+                <span className="shrink-0 text-[13.5px] font-semibold whitespace-nowrap">Room Description:</span>
+                <span className="truncate text-[13px] text-[#737373]">No description provided.</span>
               </div>
             </div>
 
@@ -453,7 +454,7 @@ export default function DamageLabeling() {
             <button
               onClick={nextPhoto}
               className={cn(
-                'h-[34px] flex-1 rounded-[8px] px-3 text-[12.5px] font-medium',
+                'h-[34px] flex-1 rounded-[8px] px-3 text-[12.5px] font-medium whitespace-nowrap',
                 photo.labels.length ? 'border border-[#e5e5e5] bg-white text-[#171717] hover:bg-[#fafafa]' : 'bg-[#171717] text-white hover:bg-[#262626]',
               )}
             >
@@ -465,7 +466,7 @@ export default function DamageLabeling() {
                   <button
                     onClick={finish}
                     disabled={!allDone}
-                    className="h-[34px] flex-1 rounded-[8px] bg-[#171717] px-3 text-[12.5px] font-medium text-white hover:bg-[#262626] disabled:pointer-events-none disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
+                    className="h-[34px] flex-1 rounded-[8px] bg-[#171717] px-3 text-[12.5px] font-medium whitespace-nowrap text-white hover:bg-[#262626] disabled:pointer-events-none disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
                   >
                     Finish labeling
                   </button>
