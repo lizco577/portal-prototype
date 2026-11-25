@@ -20,7 +20,6 @@ import {
   Hash,
   ListFilter,
   Search,
-  SlidersHorizontal,
   Star,
   User,
   X,
@@ -29,7 +28,8 @@ import {
 import { AppShell } from '@/components/portal/AppShell'
 import { AssigneeCell } from '@/components/portal/assignee'
 import { SlaPill, TaskStatusChip, TaskTypeChip } from '@/components/portal/chips'
-import { ColumnFilter, FilterList } from '@/components/portal/FilterPicker'
+import { ColumnFilter } from '@/components/portal/FilterPicker'
+import { FiltersPanel } from '@/components/portal/FiltersPanel'
 import { PriorityPanel } from '@/components/portal/PriorityPanel'
 import { TaskTypeMenuItems } from '@/components/portal/TaskTypeMenu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -39,9 +39,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { currentUserId, personById } from '@/data/people'
@@ -259,56 +256,20 @@ export default function TaskQueue() {
             )}
           </label>
 
-          {/* Filters: every filter in one place, Priority first */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <ToolbarButton active={activeFilterCount > 0}>
-                <SlidersHorizontal className="size-3.5" /> Filters
-                {activeFilterCount > 0 && (
-                  <span className="ml-0.5 rounded-full bg-[#171717] px-1.5 text-[11px] leading-[18px] text-white">{activeFilterCount}</span>
-                )}
-              </ToolbarButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[210px]">
-              <DropdownMenuCheckboxItem
-                checked={filters.priority}
-                onSelect={(e) => e.preventDefault()}
-                onCheckedChange={(v) => update((f) => ({ ...f, priority: !!v }))}
-                className="text-[13px]"
-              >
-                <Star className={cn('size-3.5', filters.priority ? 'fill-[#171717] text-[#171717]' : 'text-[#737373]')} />
-                <span className="flex-1">Priority</span>
-                <span className="text-[11.5px] text-[#a3a3a3] tabular-nums">{priorityCount}</span>
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="text-[13px]">
-                  <span className="flex-1">Task type</span>
-                  {typeSel && <span className="text-[11.5px] text-[#737373]">1</span>}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-[240px] p-[5px]">{typeMenu}</DropdownMenuSubContent>
-              </DropdownMenuSub>
-              {PICKER_COLS.map((c) => (
-                <DropdownMenuSub key={c}>
-                  <DropdownMenuSubTrigger className="text-[13px]">
-                    <span className="flex-1">{COL_LABEL[c]}</span>
-                    {filters.cols[c].length > 0 && <span className="text-[11.5px] text-[#737373]">{filters.cols[c].length}</span>}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="max-h-[420px] w-[260px] overflow-y-auto p-[6px]">
-                    <FilterList {...filterProps(c)} />
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              ))}
-              {activeFilterCount > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-[13px]" onSelect={() => update((f) => ({ ...f, priority: false, cols: emptyCols() }))}>
-                    Clear all filters
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Filters: one panel that drills in place */}
+          <FiltersPanel
+            priority={filters.priority}
+            priorityCount={priorityCount}
+            onPriority={(on) => update((f) => ({ ...f, priority: on }))}
+            typeSel={typeSel}
+            typeTotal={typeTotal}
+            typeCounts={facets.type}
+            onType={setType}
+            pickerCols={PICKER_COLS}
+            listProps={filterProps}
+            activeCount={activeFilterCount}
+            onClearAll={() => update((f) => ({ ...f, priority: false, cols: emptyCols() }))}
+          />
 
           {/* Task type dropdown: the one task type filter */}
           <DropdownMenu>
