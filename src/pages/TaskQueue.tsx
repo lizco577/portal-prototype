@@ -557,9 +557,15 @@ function Row({
           onDoubleClick={(e) => e.stopPropagation()}
           aria-label={priority ? 'Remove priority' : 'Mark as priority'}
           aria-pressed={priority}
-          className="flex size-7 items-center justify-center rounded-md hover:bg-black/5"
+          // Like Gmail: no background on hover, only the star itself darkens
+          className="group flex size-7 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-[#a3a3a3]"
         >
-          <Star className={cn('size-4', priority ? 'fill-[#171717] text-[#171717]' : 'text-[#c4c4c4]')} />
+          <Star
+            className={cn(
+              'size-4 transition-colors',
+              priority ? 'fill-[#171717] text-[#171717]' : 'text-[#c4c4c4] group-hover:text-[#525252]',
+            )}
+          />
         </button>
       </td>
       {show('sla') && (
