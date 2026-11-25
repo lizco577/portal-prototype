@@ -73,7 +73,7 @@ export default function ImageQA() {
           </div>
           <Popover>
             <PopoverTrigger asChild>
-              <button className="flex h-[35px] items-center gap-[7px] rounded-[7px] border border-[#e5e5e5] bg-white px-[13px] text-[12.5px] font-medium shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] hover:bg-[#fafafa]">
+              <button className="flex h-[35px] items-center gap-[7px] rounded-[7px] border border-[#e5e5e5] bg-white px-[13px] text-[12.5px] font-medium hover:bg-[#fafafa]">
                 <ListChecks className="size-3.5" /> Mark room issues {issues.length > 0 && <span className="text-[#737373]">{issues.length}</span>}
               </button>
             </PopoverTrigger>

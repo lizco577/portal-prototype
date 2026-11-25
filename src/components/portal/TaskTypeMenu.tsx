@@ -21,27 +21,28 @@ export function TaskTypeMenuItems({
 }) {
   return (
     <>
-      <Item active={selected === null} onSelect={() => onSelect(null)}>
-        <span className="flex-1">All task types</span>
-        <span className="text-[#a3a3a3] tabular-nums">· {total}</span>
+      <Item active={selected === null} count={total} onSelect={() => onSelect(null)}>
+        <span className="text-[13px]">All task types</span>
       </Item>
       <DropdownMenuSeparator />
       {TASK_TYPES.map((t) => (
-        <Item key={t} active={selected === t} onSelect={() => onSelect(t)}>
-          <span className="flex flex-1 items-center gap-2">
-            <TaskTypeChip type={t} />
-            <span className="text-[#a3a3a3] tabular-nums">· {counts.get(t) ?? 0}</span>
-          </span>
+        <Item key={t} active={selected === t} count={counts.get(t) ?? 0} onSelect={() => onSelect(t)}>
+          <TaskTypeChip type={t} />
         </Item>
       ))}
     </>
   )
 }
 
-function Item({ active, onSelect, children }: { active: boolean; onSelect: () => void; children: React.ReactNode }) {
+/**
+ * Standard select row: label on the left, count right-aligned in grey, a check on the picked one.
+ * Only the row under the mouse or keyboard gets the grey highlight.
+ */
+function Item({ active, count, onSelect, children }: { active: boolean; count: number; onSelect: () => void; children: React.ReactNode }) {
   return (
-    <DropdownMenuItem onSelect={onSelect} className={cn('gap-2 py-[7px] text-[13px]', active && 'bg-[#f5f5f5]')}>
-      {children}
+    <DropdownMenuItem onSelect={onSelect} className="gap-2 py-[7px]">
+      <span className="flex min-w-0 flex-1 items-center">{children}</span>
+      <span className="text-[12px] text-[#a3a3a3] tabular-nums">{count}</span>
       <Check className={cn('size-3.5', !active && 'invisible')} />
     </DropdownMenuItem>
   )

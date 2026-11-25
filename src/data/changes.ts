@@ -46,7 +46,7 @@ export const TASK_LIST_CHANGES: Change[] = [
     code: 'D11',
     title: 'Priority star',
     kind: 'New',
-    detail: 'Star a single task to mark it priority. The star turns black when on. Filterable from the Filters menu.',
+    detail: 'Star a single task to mark it priority. The star turns black and the task moves to the top of the list. Filterable from the Filters menu.',
     target: 'star-header',
   },
   {
@@ -54,7 +54,7 @@ export const TASK_LIST_CHANGES: Change[] = [
     code: 'D11',
     title: 'Priority settings',
     kind: 'New',
-    detail: 'Leads mark a whole customer as priority. All its tasks get a star.',
+    detail: 'Leads mark a whole customer as priority. All its tasks get a star and move to the top of the list.',
     target: 'priority-settings',
     opens: 'click',
   },

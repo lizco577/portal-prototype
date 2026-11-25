@@ -603,7 +603,7 @@ function Tool({ icon: Icon, label, active, disabled, onClick }: { icon: LucideIc
           onClick={onClick}
           className={cn(
             'flex size-8 items-center justify-center rounded-[6px] disabled:text-[#d4d4d4]',
-            active ? 'border border-[#d4d4d4] bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.06)]' : 'hover:bg-black/5',
+            active ? 'border border-[#d4d4d4] bg-white' : 'hover:bg-black/5',
           )}
         >
           <Icon className="size-[15px]" />

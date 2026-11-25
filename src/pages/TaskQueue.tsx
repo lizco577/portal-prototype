@@ -59,7 +59,7 @@ import {
   type ColKey,
   type Filters,
 } from '@/lib/filters'
-import { minutesLeft, SLA_ORDER, slaState } from '@/lib/sla'
+import { minutesLeft, slaState } from '@/lib/sla'
 import { TASK_LIST_CHANGES } from '@/data/changes'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -120,14 +120,11 @@ export default function TaskQueue() {
       .filter((t) => passes(t, filters, now, isPriority))
       .sort((a, b) => {
         if ((a.dueAt == null) !== (b.dueAt == null)) return a.dueAt == null ? 1 : -1 // done at the bottom
-        if (a.dueAt == null || b.dueAt == null) return 0
-        // Same SLA colour: starred / priority tasks go first, then by time left.
-        const sa = SLA_ORDER[slaState(minutesLeft(a.dueAt, now))]
-        const sb = SLA_ORDER[slaState(minutesLeft(b.dueAt, now))]
-        if (sa !== sb) return (sa - sb) * dir
+        // Priority tasks (starred, or from a priority customer) go to the top, then by time left.
         const pa = isPriority(a) ? 0 : 1
         const pb = isPriority(b) ? 0 : 1
         if (pa !== pb) return pa - pb
+        if (a.dueAt == null || b.dueAt == null) return 0
         return (a.dueAt - b.dueAt) * dir
       })
   }, [tasks, filters, now, slaAsc, isPriority])
@@ -317,7 +314,8 @@ export default function TaskQueue() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <ToolbarButton active={!!typeSel} data-change="type-dropdown">
-                {typeSel ? `${typeSel} · ${facets.type.get(typeSel) ?? 0}` : `All task types · ${typeTotal}`}
+                {typeSel ?? 'All task types'}
+                <span className="font-normal text-[#a3a3a3] tabular-nums">{typeSel ? (facets.type.get(typeSel) ?? 0) : typeTotal}</span>
                 <ChevronDown className="size-3.5" />
               </ToolbarButton>
             </DropdownMenuTrigger>
@@ -631,7 +629,7 @@ function Row({
               onClick={onClaim}
               data-change={firstClaim ? 'claim-button' : undefined}
               onDoubleClick={(e) => e.stopPropagation()}
-              className="flex h-[26px] items-center gap-1 rounded-[7px] border border-[#e5e5e5] bg-white px-2 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
+              className="flex h-[26px] items-center gap-1 rounded-[7px] border border-[#e5e5e5] bg-white px-2 text-[12px] font-medium hover:bg-[#f5f5f5]"
             >
               <Hand className="size-3.5" /> Claim
             </button>
@@ -748,7 +746,7 @@ function SummaryCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        'flex flex-col gap-3 rounded-xl border px-5 pt-5 pb-[18px] text-left shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] transition-colors',
+        'flex flex-col gap-3 rounded-xl border px-5 pt-5 pb-[18px] text-left transition-colors',
         // selected state from "UI TQ1 · C2 · Overdue selected": dark border + light fill
         selected ? 'border-transparent bg-[#fafafa] outline-[1.5px] outline-[#171717] outline-solid' : 'border-[#e5e5e5] bg-white hover:border-[#d4d4d4] hover:bg-[#fcfcfc]',
       )}
@@ -768,7 +766,7 @@ function ToolbarButton({ children, active, ...props }: React.ButtonHTMLAttribute
     <button
       {...props}
       className={cn(
-        'flex h-[35px] shrink-0 items-center gap-[7px] rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium whitespace-nowrap shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] hover:bg-[#fafafa]',
+        'flex h-[35px] shrink-0 items-center gap-[7px] rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium whitespace-nowrap hover:bg-[#fafafa]',
         active ? 'border-[#a3a3a3]' : 'border-[#e5e5e5]',
       )}
     >
