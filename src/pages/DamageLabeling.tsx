@@ -3,8 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Check,
   ChevronDown,
-  CircleCheck,
-  Clock,
   ImageOff,
   MousePointer2,
   PenTool,
@@ -13,23 +11,20 @@ import {
   Settings,
   Trash2,
   Undo2,
-  UserRoundPlus,
   X,
   ZoomIn,
   ZoomOut,
   type LucideIcon,
 } from 'lucide-react'
 import { AppShell } from '@/components/portal/AppShell'
-import { Avatar } from '@/components/portal/assignee'
 import { ChoiceSelect } from '@/components/portal/ChoiceSelect'
 import { MaterialsDialog } from '@/components/portal/MaterialsDialog'
 import { WHATS_CHANGED_OPEN } from '@/components/portal/ChangesPanel'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ReviewPanel, ReviewStateSwitcher } from '@/components/portal/ReviewPanel'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
-import { currentUserId, people, personById } from '@/data/people'
 import { DAMAGE_LABELING_CHANGES } from '@/data/changes'
-import { useStore, type TaskNote } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 type Mode = 'draw' | 'select'
@@ -40,7 +35,7 @@ const labelName = (l: Label) =>
 export default function DamageLabeling() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { tasks, photosFor, setPhotos, updateTask, showToast, notesFor, addNote, reviewStatus, dismissedBanners, dismissBanner, sortedMaterials } = useStore()
+  const { tasks, photosFor, setPhotos, updateTask, showToast, reviewFor, markReviewRead, sortedMaterials } = useStore()
   const task = tasks.find((t) => t.id === id)
   const photos = photosFor(id)
   const [index, setIndex] = useState(0)
@@ -50,20 +45,18 @@ export default function DamageLabeling() {
   const [selected, setSelected] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [redo, setRedo] = useState<Label[]>([])
-  const [tab, setTab] = useState<'labels' | 'notes'>('labels')
-  // Set by "Not sure? Send for review": opens Comments with the comment box focused, once
-  const [askReview, setAskReview] = useState(false)
+  const [tab, setTab] = useState<'labels' | 'review'>('labels')
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const photoRef = useRef<HTMLDivElement>(null)
 
   const photo = photos[index]
   const doneCount = photos.filter((p) => p.done).length
   const allDone = doneCount === photos.length
-  const taskNotes = notesFor(id)
-  const review = reviewStatus(id)
-  const openReviewInNotes = () => {
-    setTab('notes')
-    setAskReview(true)
+  const review = reviewFor(id)
+  // Opening the Review tab clears the blue dot. The teammate list stays closed until you click it.
+  const openReview = () => {
+    setTab('review')
+    markReviewRead(id)
   }
 
   const updatePhoto = useCallback(
@@ -78,7 +71,7 @@ export default function DamageLabeling() {
     const onOpen = (e: Event) => {
       const what = (e as CustomEvent<string>).detail
       if (what === 'materials') setMaterialsOpen(true)
-      if (what === 'send-for-review') openReviewInNotes()
+      if (what === 'send-for-review') openReview()
     }
     window.addEventListener(WHATS_CHANGED_OPEN, onOpen)
     return () => window.removeEventListener(WHATS_CHANGED_OPEN, onOpen)
@@ -142,19 +135,30 @@ export default function DamageLabeling() {
 
   const goTo = (i: number) => {
     setIndex(i)
-    setTab('labels')
     setDraft([])
     setSelected(null)
     setRedo([])
   }
-  const nextPhoto = () => {
-    const hasLabels = photo.labels.length > 0
-    updatePhoto((p) => ({ ...p, done: true, noDamage: !hasLabels }))
+  const goToNextOpen = () => {
     const next = photos.findIndex((p, i) => i > index && !p.done)
     const wrap = photos.findIndex((p, i) => i !== index && !p.done)
     const target = next >= 0 ? next : wrap
     if (target >= 0) goTo(target)
-    showToast(hasLabels ? `Photo ${index + 1} done` : `Photo ${index + 1} marked as no damage`)
+    else if (index < photos.length - 1) goTo(index + 1)
+  }
+  // "No damage": this photo is done with nothing on it.
+  const markNoDamage = () => {
+    updatePhoto((p) => ({ ...p, done: true, noDamage: true }))
+    showToast(`Photo ${index + 1} marked as no damage`)
+    goToNextOpen()
+  }
+  // "Next photo": a photo with labels counts as done; one without is just skipped for now.
+  const nextPhoto = () => {
+    if (photo.labels.length) {
+      updatePhoto((p) => ({ ...p, done: true, noDamage: false }))
+      showToast(`Photo ${index + 1} done`)
+    }
+    goToNextOpen()
   }
   const finish = () => {
     updateTask(task.id, { status: 'Done', dueAt: null })
@@ -179,11 +183,10 @@ export default function DamageLabeling() {
     if (selected === labelId) setSelected(null)
   }
 
-  const showBanner = review && !dismissedBanners.includes(review.requestId)
-
   return (
     <AppShell
       changes={DAMAGE_LABELING_CHANGES}
+      annotations={<ReviewStateSwitcher taskId={id} />}
       crumbs={[
         { label: 'Tasks', to: '/' },
         { label: task.roomId, to: '/' },
@@ -354,15 +357,7 @@ export default function DamageLabeling() {
 
         {/* Label panel */}
         <div className="flex min-h-0 w-[38%] max-w-[380px] min-w-[340px] shrink-0 flex-col rounded-[10px] border border-[#e5e5e5] bg-white">
-          <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[14px] pt-4 pb-4">
-            {showBanner && review && (
-              <ReviewBanner
-                reviewed={review.reviewed}
-                name={personById(review.reviewerId)?.name ?? ''}
-                onDismiss={() => dismissBanner(review.requestId)}
-                onOpen={() => setTab('notes')}
-              />
-            )}
+          <div className="flex shrink-0 flex-col gap-[14px] px-[14px] pt-4">
             <div className="flex flex-col gap-1 leading-normal">
               <div className="flex gap-[5px]">
                 <span className="shrink-0 text-[13.5px] font-semibold whitespace-nowrap">Image ID:</span>
@@ -374,23 +369,18 @@ export default function DamageLabeling() {
               </div>
             </div>
 
-            {/* Notes is always here; it's also where you ask a teammate to review */}
+            {/* Two tabs, always there. The dot means something new on Review. */}
             <div className="flex gap-5 border-b border-[#e5e5e5]">
               <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
-              <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Comments" count={taskNotes.length || undefined} />
+              <PanelTab active={tab === 'review'} onClick={openReview} label="Review" dot={review.unread} dataChange="review-tab" />
             </div>
+          </div>
 
-            {tab === 'notes' ? (
-              <NotesPanel
-                notes={taskNotes}
-                askReview={askReview}
-                onAskHandled={() => setAskReview(false)}
-                onSend={(text, reviewerId) => {
-                  addNote(id, text, reviewerId)
-                  showToast(reviewerId ? `Asked ${personById(reviewerId)?.name} to review` : 'Comment added')
-                }}
-              />
-            ) : photo.labels.length === 0 ? (
+          {tab === 'review' ? (
+            <ReviewPanel taskId={id} />
+          ) : (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[14px] py-4">
+            {photo.labels.length === 0 ? (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-[12.5px] text-[#262626]">
                   <ImageOff className="size-3.5" /> No damage labeled on this photo
@@ -439,19 +429,13 @@ export default function DamageLabeling() {
                           <Question label="What is the type of damage?">
                             <ChoiceSelect value={l.damage} options={DAMAGE_TYPES} onChange={(v) => updateLabel(l.id, { damage: v })} />
                           </Question>
-                          {review && !review.reviewed ? (
-                            <div className="flex items-center gap-1.5 text-[12px] text-[#737373]">
-                              <Clock className="size-3.5" /> Waiting on {personById(review.reviewerId)?.name}'s review
-                            </div>
-                          ) : (
-                            <button
-                              data-change="send-for-review"
-                              onClick={openReviewInNotes}
-                              className="flex items-center gap-1.5 self-start text-[12px] text-[#525252] underline-offset-2 hover:text-[#0a0a0a] hover:underline"
-                            >
-                              <Send className="size-3" /> Not sure? Send for review
-                            </button>
-                          )}
+                          <button
+                            data-change="send-for-review"
+                            onClick={openReview}
+                            className="flex items-center gap-1.5 self-start text-[12px] text-[#525252] underline-offset-2 hover:text-[#0a0a0a] hover:underline"
+                          >
+                            <Send className="size-3" /> Not sure? Ask for review
+                          </button>
                         </div>
                       )}
                     </div>
@@ -460,17 +444,22 @@ export default function DamageLabeling() {
               </div>
             )}
           </div>
+          )}
 
-          {/* Panel footer, as in "UI DL · Draw · L5" */}
+          {/* Fixed action bar: the same under both tabs, as in "UI DL · Draw · L5" */}
           <div className="flex gap-2 border-t border-[#e5e5e5] px-[14px] py-3" data-change="photo-buttons">
             <button
-              onClick={nextPhoto}
-              className={cn(
-                'h-[34px] flex-1 rounded-[8px] px-3 text-[12.5px] font-medium whitespace-nowrap',
-                photo.labels.length ? 'border border-[#e5e5e5] bg-white text-[#171717] hover:bg-[#fafafa]' : 'bg-[#171717] text-white hover:bg-[#262626]',
-              )}
+              onClick={markNoDamage}
+              disabled={photo.labels.length > 0}
+              className="h-[34px] flex-1 rounded-[8px] border border-[#e5e5e5] bg-white px-3 text-[12.5px] font-medium whitespace-nowrap text-[#171717] hover:bg-[#fafafa] disabled:pointer-events-none disabled:text-[#a3a3a3]"
             >
-              {photo.labels.length ? 'Next photo' : 'No damage, next photo'}
+              No damage
+            </button>
+            <button
+              onClick={nextPhoto}
+              className="h-[34px] flex-1 rounded-[8px] border border-[#e5e5e5] bg-white px-3 text-[12.5px] font-medium whitespace-nowrap text-[#171717] hover:bg-[#fafafa]"
+            >
+              Next photo
             </button>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -495,186 +484,15 @@ export default function DamageLabeling() {
   )
 }
 
-/** One line: review requested, then reviewed. The conversation itself lives in Comments. */
-function ReviewBanner({ reviewed, name, onDismiss, onOpen }: { reviewed: boolean; name: string; onDismiss: () => void; onOpen: () => void }) {
-  return (
-    <div
-      data-testid="review-banner"
-      className={cn(
-        'flex items-center gap-2 rounded-[8px] border px-3 py-2 text-[12.5px]',
-        reviewed ? 'border-[#bbf7d0] bg-[#f0fdf4]' : 'border-[#e5e5e5] bg-[#fafafa]',
-      )}
-    >
-      {reviewed ? <CircleCheck className="size-3.5 shrink-0 text-[#15803d]" /> : <Clock className="size-3.5 shrink-0 text-[#525252]" />}
-      <button onClick={onOpen} className="min-w-0 flex-1 truncate text-left font-medium hover:underline">
-        {reviewed ? `Reviewed by ${name}` : `Review requested from ${name}`}
-      </button>
-      {reviewed && (
-        <button onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 text-[#525252] hover:bg-black/5">
-          <X className="size-3.5" />
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Notes for the task: a simple list, and a box to add one. A note can ask a teammate to review. */
-function NotesPanel({
-  notes,
-  askReview,
-  onAskHandled,
-  onSend,
-}: {
-  notes: TaskNote[]
-  askReview: boolean
-  onAskHandled: () => void
-  onSend: (text: string, reviewerId?: string) => void
-}) {
-  const [text, setText] = useState('')
-  const [reviewerId, setReviewerId] = useState('')
-  const [pickOpen, setPickOpen] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const boxRef = useRef<HTMLTextAreaElement>(null)
-  const reviewer = personById(reviewerId)
-  const expanded = focused || pickOpen || !!text || !!reviewerId
-
-  // "Not sure? Send for review" lands here once, with the note box focused. Opening the tab yourself doesn't.
-  useEffect(() => {
-    if (!askReview) return
-    boxRef.current?.focus()
-    onAskHandled()
-  }, [askReview, onAskHandled])
-
-  const send = () => {
-    if (!text.trim()) return
-    onSend(text.trim(), reviewerId || undefined)
-    setText('')
-    setReviewerId('')
-  }
-  const ago = (t: number) => {
-    const m = Math.max(0, Math.round((Date.now() - t) / 60000))
-    return m < 1 ? 'just now' : `${m} min ago`
-  }
-
-  return (
-    <div className="flex flex-col gap-[14px]">
-      {notes.length > 0 && (
-        <div className="flex flex-col gap-[14px]">
-          {notes.map((n) => {
-            const who = personById(n.authorId)
-            return (
-              <div key={n.id} className="flex gap-[10px]">
-                <Avatar person={who} />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-[12.5px] font-semibold">{who?.name}</span>
-                    <span className="text-[11.5px] text-[#a3a3a3]">{ago(n.at)}</span>
-                  </div>
-                  <p className="text-[13px] leading-[1.45] text-[#262626]">{n.text}</p>
-                  {n.reviewRequestTo && (
-                    <span className="self-start rounded-[5px] bg-[#f5f5f5] px-1.5 py-0.5 text-[11.5px] text-[#525252]">
-                      Asked {personById(n.reviewRequestTo)?.name} to review
-                    </span>
-                  )}
-                  {n.reviewReplyTo && (
-                    <span className="flex items-center gap-1 self-start rounded-[5px] bg-[#f0fdf4] px-1.5 py-0.5 text-[11.5px] text-[#15803d]">
-                      <CircleCheck className="size-3" /> Reviewed
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Add a comment, like a standard comment box: the actions show once you start writing */}
-      <div
-        onFocus={() => setFocused(true)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocused(false)
-        }}
-        className="flex flex-col rounded-[8px] border border-[#e5e5e5] focus-within:border-[#a3a3a3]"
-      >
-        <textarea
-          ref={boxRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
-          }}
-          rows={expanded ? 3 : 1}
-          placeholder={reviewer ? `What should ${reviewer.name.split(' ')[0]} look at?` : 'Add a comment…'}
-          className="resize-none bg-transparent px-[10px] py-[8px] text-[13px] leading-[1.45] outline-none placeholder:text-[#a3a3a3]"
-        />
-        <div className={cn('flex items-center gap-2 px-2 pb-2', !expanded && 'hidden')}>
-          <Popover open={pickOpen} onOpenChange={setPickOpen}>
-            <PopoverTrigger asChild>
-              {reviewer ? (
-                <button className="flex min-w-0 items-center gap-1.5 rounded-[6px] bg-[#f5f5f5] py-1 pr-1.5 pl-1 text-[12px] font-medium whitespace-nowrap">
-                  <Avatar person={reviewer} size={18} />
-                  <span className="truncate">Review: {reviewer.name.split(' ')[0]}</span>
-                  <span
-                    role="button"
-                    aria-label="Don't ask for review"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setReviewerId('')
-                    }}
-                    className="rounded p-0.5 hover:bg-black/10"
-                  >
-                    <X className="size-3" />
-                  </span>
-                </button>
-              ) : (
-                <button className="flex items-center gap-1.5 rounded-[6px] px-1.5 py-1 text-[12px] font-medium whitespace-nowrap text-[#525252] hover:bg-[#f5f5f5]">
-                  <UserRoundPlus className="size-3.5" /> Ask for review
-                </button>
-              )}
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[240px] gap-0 p-[6px]">
-              <div className="px-2 pt-1 pb-1.5 text-[11.5px] font-medium text-[#737373]">Ask a teammate to review</div>
-              {people
-                .filter((p) => p.id !== currentUserId)
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setReviewerId(p.id)
-                      setPickOpen(false)
-                      boxRef.current?.focus()
-                    }}
-                    className={cn('flex w-full items-center gap-[10px] rounded-md px-2 py-[6px] text-left text-[13px] hover:bg-[#f5f5f5]', p.id === reviewerId && 'bg-[#f5f5f5]')}
-                  >
-                    <Avatar person={p} />
-                    <span className="flex-1">{p.name}</span>
-                    {p.id === reviewerId && <Check className="size-3.5" />}
-                  </button>
-                ))}
-            </PopoverContent>
-          </Popover>
-          <div className="flex-1" />
-          <button
-            onClick={send}
-            disabled={!text.trim()}
-            className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-[7px] bg-[#171717] px-2.5 text-[12px] font-medium whitespace-nowrap text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
-          >
-            {reviewer ? 'Ask for review' : 'Comment'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PanelTab({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count?: number }) {
+function PanelTab({ active, onClick, label, dot, dataChange }: { active: boolean; onClick: () => void; label: string; dot?: boolean; dataChange?: string }) {
   return (
     <button
       onClick={onClick}
-      className={cn('-mb-px flex gap-[5px] border-b-2 pb-2 text-[13px]', active ? 'border-[#0a0a0a] font-semibold' : 'border-transparent text-[#737373]')}
+      data-change={dataChange}
+      className={cn('-mb-px flex items-center gap-[6px] border-b-2 pb-2 text-[13px]', active ? 'border-[#0a0a0a] font-semibold' : 'border-transparent text-[#737373]')}
     >
       {label}
-      {count != null && <span className="text-[12px] font-normal text-[#a3a3a3]">{count}</span>}
+      {dot && <span aria-label="New" className="size-1.5 rounded-full bg-[#2563eb]" />}
     </button>
   )
 }

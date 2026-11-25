@@ -1,22 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { buildTasks, type Organization, type Task } from '@/data/tasks'
-import { buildPhotos, INITIAL_MATERIALS, REVIEW_REPLIES, type Material, type PhotoState } from '@/data/labeling'
+import { buildPhotos, INITIAL_MATERIALS, type Material, type PhotoState } from '@/data/labeling'
+import { buildReviews, cannedReview, EMPTY_REVIEW, reviewStage, type Attachment, type Review, type ReviewStage } from '@/data/reviews'
 import { currentUserId } from '@/data/people'
 
 export type MaterialSort = 'az' | 'used' | 'custom'
-
-/** A note on a task. A note can ask a teammate to review; their reply is a note marked as the review. */
-export type TaskNote = {
-  id: string
-  authorId: string
-  text: string
-  at: number
-  reviewRequestTo?: string // this note asks this person to review
-  reviewReplyTo?: string // this note is the review answering that request (note id)
-}
-
-/** Where the latest review request stands, for the one-line banner. */
-export type ReviewStatus = { requestId: string; reviewerId: string; reviewed: boolean } | null
 
 type Store = {
   now: number
@@ -32,11 +20,13 @@ type Store = {
   // Damage labeling
   photosFor: (taskId: string) => PhotoState[]
   setPhotos: (taskId: string, fn: (p: PhotoState[]) => PhotoState[]) => void
-  notesFor: (taskId: string) => TaskNote[]
-  addNote: (taskId: string, text: string, reviewerId?: string) => void
-  reviewStatus: (taskId: string) => ReviewStatus
-  dismissedBanners: string[]
-  dismissBanner: (requestId: string) => void
+  reviewFor: (taskId: string) => Review
+  setReviewer: (taskId: string, personId: string | null) => void
+  sendReviewComment: (taskId: string, text: string, images: Attachment[]) => void
+  toggleResolved: (taskId: string, commentId: string) => void
+  markReviewRead: (taskId: string) => void
+  /** Prototype only: jump a task to one of the four review states */
+  setReviewStage: (taskId: string, stage: ReviewStage) => void
 
   // Materials
   materials: Material[]
@@ -61,8 +51,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState(() => buildTasks(start))
   const [priorityOrgs, setPriorityOrgs] = useState<Organization[]>([])
   const [photos, setPhotoMap] = useState<Record<string, PhotoState[]>>({})
-  const [notes, setNotes] = useState<Record<string, TaskNote[]>>({})
-  const [dismissedBanners, setDismissedBanners] = useState<string[]>([])
+  const [reviews, setReviews] = useState<Record<string, Review>>(() => buildReviews(tasks, start))
   const [materials, setMaterialsState] = useState<Material[]>(INITIAL_MATERIALS)
   const [materialSort, setMaterialSort] = useState<MaterialSort>('az')
   const [toast, setToast] = useState<string | null>(null)
@@ -88,34 +77,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const isPriority = useCallback((t: Task) => t.star ?? priorityOrgs.includes(t.org), [priorityOrgs])
 
-  const addNote = useCallback(
-    (taskId: string, text: string, reviewerId?: string) => {
-      const note: TaskNote = { id: `n${Date.now()}`, authorId: currentUserId, text, at: Date.now(), reviewRequestTo: reviewerId }
-      setNotes((n) => ({ ...n, [taskId]: [...(n[taskId] ?? []), note] }))
-      if (!reviewerId) return
-      updateTask(taskId, { status: 'In review', assigneeId: reviewerId, sentById: currentUserId })
-      // Prototype only: the teammate replies a few seconds later so the reviewed state can be seen.
-      window.setTimeout(() => {
-        setNotes((n) => {
-          const list = n[taskId] ?? []
-          const replyText = REVIEW_REPLIES[list.filter((x) => x.reviewReplyTo).length % REVIEW_REPLIES.length]
-          const reply: TaskNote = { id: `n${Date.now()}`, authorId: reviewerId, text: replyText, at: Date.now(), reviewReplyTo: note.id }
-          return { ...n, [taskId]: [...list, reply] }
-        })
+  const patchReview = useCallback(
+    (taskId: string, fn: (r: Review) => Review) => setReviews((m) => ({ ...m, [taskId]: fn(m[taskId] ?? EMPTY_REVIEW) })),
+    [],
+  )
+  const uid = () => `r${Date.now()}${Math.random().toString(36).slice(2, 6)}`
+
+  // Picking someone before anything is sent only sets them. Once a request is out, a new pick asks the
+  // new person, and removing them takes the task back.
+  const setReviewer = useCallback(
+    (taskId: string, personId: string | null) => {
+      const r = reviews[taskId] ?? EMPTY_REVIEW
+      const at = Date.now()
+      if (r.askedAt == null || r.askedById !== currentUserId) {
+        patchReview(taskId, (x) => ({ ...x, reviewerId: personId }))
+        return
+      }
+      if (personId === r.reviewerId) return
+      if (!personId) {
+        patchReview(taskId, (x) => ({
+          ...x,
+          reviewerId: null,
+          askedById: null,
+          askedAt: null,
+          items: [...x.items, { kind: 'removed', id: uid(), at, byId: currentUserId, toId: r.reviewerId! }],
+        }))
         updateTask(taskId, { status: 'In Progress', assigneeId: currentUserId, sentById: null })
-      }, 6000)
+        return
+      }
+      patchReview(taskId, (x) => ({
+        ...x,
+        reviewerId: personId,
+        askedAt: at,
+        items: [...x.items, { kind: 'asked', id: uid(), at, byId: currentUserId, toId: personId }],
+      }))
+      updateTask(taskId, { status: 'In review', assigneeId: personId, sentById: currentUserId })
     },
-    [updateTask],
+    [reviews, patchReview, updateTask],
   )
 
-  const reviewStatus = useCallback(
-    (taskId: string): ReviewStatus => {
-      const list = notes[taskId] ?? []
-      const request = [...list].reverse().find((x) => x.reviewRequestTo)
-      if (!request) return null
-      return { requestId: request.id, reviewerId: request.reviewRequestTo!, reviewed: list.some((x) => x.reviewReplyTo === request.id) }
+  const sendReviewComment = useCallback(
+    (taskId: string, text: string, images: Attachment[]) => {
+      const r = reviews[taskId] ?? EMPTY_REVIEW
+      const at = Date.now()
+      const comment = { kind: 'comment' as const, id: uid(), at, authorId: currentUserId, text, images }
+      const stage = reviewStage(r)
+      if (stage === 1 && r.reviewerId) {
+        // The first message after picking a reviewer is what sends the request.
+        patchReview(taskId, (x) => ({
+          ...x,
+          askedById: currentUserId,
+          askedAt: at,
+          unread: false,
+          items: [...x.items, { kind: 'asked', id: uid(), at, byId: currentUserId, toId: r.reviewerId! }, comment],
+        }))
+        updateTask(taskId, { status: 'In review', assigneeId: r.reviewerId, sentById: currentUserId })
+        return
+      }
+      patchReview(taskId, (x) => ({ ...x, unread: false, items: [...x.items, comment] }))
+      // The reviewer answering hands the task back to whoever asked.
+      if (stage === 3 && r.askedById) updateTask(taskId, { status: 'In Progress', assigneeId: r.askedById, sentById: null })
     },
-    [notes],
+    [reviews, patchReview, updateTask],
   )
 
   const sortedMaterials = useMemo(() => {
@@ -135,11 +158,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleStar: (t) => updateTask(t.id, { star: !isPriority(t) }),
       photosFor: (taskId) => photos[taskId] ?? buildPhotos(taskId),
       setPhotos: (taskId, fn) => setPhotoMap((m) => ({ ...m, [taskId]: fn(m[taskId] ?? buildPhotos(taskId)) })),
-      notesFor: (taskId) => notes[taskId] ?? [],
-      addNote,
-      reviewStatus,
-      dismissedBanners,
-      dismissBanner: (requestId) => setDismissedBanners((d) => [...d, requestId]),
+      reviewFor: (taskId) => reviews[taskId] ?? EMPTY_REVIEW,
+      setReviewer,
+      sendReviewComment,
+      toggleResolved: (taskId, commentId) =>
+        patchReview(taskId, (x) => ({
+          ...x,
+          items: x.items.map((i) => (i.kind === 'comment' && i.id === commentId ? { ...i, resolved: !i.resolved } : i)),
+        })),
+      markReviewRead: (taskId) => {
+        if (reviews[taskId]?.unread) patchReview(taskId, (x) => ({ ...x, unread: false }))
+      },
+      setReviewStage: (taskId, stage) => {
+        const { review, task } = cannedReview(stage, Date.now())
+        setReviews((m) => ({ ...m, [taskId]: review }))
+        updateTask(taskId, task)
+      },
       materials,
       setMaterials: setMaterialsState,
       materialSort,
@@ -150,7 +184,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       changesOpen,
       setChangesOpen,
     }),
-    [now, tasks, updateTask, priorityOrgs, isPriority, photos, notes, addNote, reviewStatus, dismissedBanners, materials, materialSort, sortedMaterials, toast, showToast, changesOpen],
+    [now, tasks, updateTask, priorityOrgs, isPriority, photos, reviews, patchReview, setReviewer, sendReviewComment, materials, materialSort, sortedMaterials, toast, showToast, changesOpen],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

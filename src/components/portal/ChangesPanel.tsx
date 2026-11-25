@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Change } from '@/data/changes'
 import { cn } from '@/lib/utils'
 
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
  * its PRD number, title and description. Hovering or clicking an item highlights it and outlines the
  * matching element on the page.
  */
-export function ChangesPanel({ changes }: { changes: Change[] }) {
+export function ChangesPanel({ changes, top }: { changes: Change[]; top?: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const active = changes.find((c) => c.id === activeId) ?? null
 
@@ -19,6 +19,7 @@ export function ChangesPanel({ changes }: { changes: Change[] }) {
     >
       {/* Same 64px height as the page header, so the two bottom lines meet */}
       <div className="flex h-16 shrink-0 items-center border-b border-[#e5e5e5] px-4 text-[14px] font-semibold">What's changed · {changes.length}</div>
+      {top}
       <ul className="flex flex-col" onMouseLeave={() => setActiveId(null)}>
         {changes.map((c) => {
           const on = c.id === activeId

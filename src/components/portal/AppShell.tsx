@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChangesPanel } from '@/components/portal/ChangesPanel'
 import type { Change } from '@/data/changes'
+import { currentUserId, personById } from '@/data/people'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -35,11 +36,14 @@ export function AppShell({
   children,
   search,
   changes,
+  annotations,
 }: {
   crumbs: Crumb[]
   children: ReactNode
   search?: SearchBinding
   changes?: Change[]
+  /** Prototype-only controls shown at the top of the What's changed panel */
+  annotations?: ReactNode
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [tz, setTz] = useState('MST')
@@ -150,7 +154,7 @@ export function AppShell({
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       </main>
       {/* What's changed: full-height column on the right, like the left nav. The page shrinks instead of being covered. */}
-      {hasChanges && changesOpen && <ChangesPanel changes={changes!} />}
+      {hasChanges && changesOpen && <ChangesPanel changes={changes!} top={annotations} />}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-[#171717] px-4 py-2.5 text-[13px] text-white shadow-lg">{toast}</div>
       )}
@@ -159,6 +163,7 @@ export function AppShell({
 }
 
 function Sidebar() {
+  const me = personById(currentUserId)!
   return (
     <aside className="flex w-[245px] shrink-0 flex-col gap-6 border-r border-[#e5e5e5] bg-[#fafafa] px-2 py-[18px]">
       <div className="flex items-center gap-[10px] pl-2">
@@ -183,16 +188,16 @@ function Sidebar() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-[10px] rounded-md px-[6px] py-1 text-left hover:bg-black/[0.03]">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-[#f0f0f0] text-[13px] font-medium">E</div>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-[#f0f0f0] text-[13px] font-medium">{me.name[0]}</div>
             <div className="flex-1 leading-tight">
-              <div className="text-[13.5px] font-medium">ecohen</div>
-              <div className="text-[11px] text-[#737373]">ecohen@hosta.ai</div>
+              <div className="text-[13.5px] font-medium">{me.email.split('@')[0]}</div>
+              <div className="text-[11px] text-[#737373]">{me.email}</div>
             </div>
             <ChevronsUpDown className="size-4 text-[#737373]" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="w-[228px]">
-          <DropdownMenuLabel className="text-[12px] font-normal text-[#737373]">Signed in as Eli Cohen · Admin</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-[12px] font-normal text-[#737373]">Signed in as {me.name} · Admin</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled className="text-[13px]">
             Sign out (not in prototype)

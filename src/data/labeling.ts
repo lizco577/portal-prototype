@@ -93,7 +93,3 @@ export function buildIqaPhotos(taskId: string): IqaPhoto[] {
   }))
 }
 
-export const REVIEW_REPLIES = [
-  'Drywall, smooth texture. You can see the tape seams near the corner.',
-  'Looks like ceiling tile to me. The grid lines show at the top left.',
-]
