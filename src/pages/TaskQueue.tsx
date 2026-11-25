@@ -16,7 +16,6 @@ import {
   Clock,
   Columns3,
   Ellipsis,
-  ExternalLink,
   Hand,
   Hash,
   ListFilter,
@@ -45,7 +44,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { currentUserId, personById } from '@/data/people'
 import { type Task, type TaskType } from '@/data/tasks'
 import {
@@ -73,11 +71,12 @@ const COLUMNS = [
   { key: 'roomId', label: 'Room ID' },
   { key: 'org', label: 'Organization' },
   { key: 'status', label: 'Status' },
+  { key: 'claimed', label: 'Claimed by' },
   { key: 'assignee', label: 'Assigned to' },
 ] as const
 type ShowKey = (typeof COLUMNS)[number]['key']
-const FILTER_COLS: ColKey[] = ['type', 'room', 'org', 'status', 'assignee']
-const PICKER_COLS: ColKey[] = ['room', 'org', 'status', 'assignee'] // task type has its own dropdown
+const FILTER_COLS: ColKey[] = ['type', 'room', 'org', 'status', 'claimed', 'assignee']
+const PICKER_COLS: ColKey[] = ['room', 'org', 'status', 'claimed', 'assignee'] // task type has its own dropdown
 
 const CARDS: { key: CardKey; icon: LucideIcon; hint: string; danger?: boolean }[] = [
   { key: 'mine', icon: User, hint: 'Assigned to you, including reviews' },
@@ -378,12 +377,12 @@ export default function TaskQueue() {
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-[#e5e5e5]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-[12.5px] text-[#262626]">
+            <table className="w-full min-w-[1150px] border-collapse text-[12.5px] text-[#262626]">
               <thead>
                 <tr className="h-11 border-b border-[#e5e5e5] bg-[#fafafa] text-left text-[#0a0a0a]">
-                  <th className="w-[40px] pl-[14px]" aria-label="Priority" data-change="star-header" />
+                  <th className="w-[34px] pl-[10px]" aria-label="Priority" data-change="star-header" />
                   {show('sla') && (
-                    <Th className="w-[168px] pl-1" dataChange="sla-header">
+                    <Th className="w-[158px] pl-1" dataChange="sla-header">
                       <button className="flex items-center gap-1.5" onClick={() => setSlaAsc((v) => !v)} title="Sort by time left">
                         SLA {slaAsc ? <ArrowUp className="size-[13px]" /> : <ArrowDown className="size-[13px]" />}
                       </button>
@@ -391,7 +390,7 @@ export default function TaskQueue() {
                   )}
                   {show('type') && (
                     <Th
-                      className="w-[170px]"
+                      className="w-[160px]"
                       filter={
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -415,27 +414,32 @@ export default function TaskQueue() {
                     </Th>
                   )}
                   {show('room') && (
-                    <Th className="w-[122px]" filter={<ColumnFilter {...filterProps('room')} />}>
+                    <Th className="w-[115px]" filter={<ColumnFilter {...filterProps('room')} />}>
                       Room Type
                     </Th>
                   )}
                   {show('roomId') && <Th>Room ID</Th>}
                   {show('org') && (
-                    <Th className="w-[132px]" filter={<ColumnFilter {...filterProps('org')} />}>
+                    <Th className="w-[125px]" filter={<ColumnFilter {...filterProps('org')} />}>
                       Organization
                     </Th>
                   )}
                   {show('status') && (
-                    <Th className="w-[135px]" filter={<ColumnFilter {...filterProps('status')} />}>
+                    <Th className="w-[125px]" filter={<ColumnFilter {...filterProps('status')} />}>
                       Status
                     </Th>
                   )}
+                  {show('claimed') && (
+                    <Th className="w-[110px]" dataChange="claimed-header" filter={<ColumnFilter {...filterProps('claimed')} />}>
+                      Claimed by
+                    </Th>
+                  )}
                   {show('assignee') && (
-                    <Th className="w-[140px]" dataChange="assignee-header" filter={<ColumnFilter {...filterProps('assignee')} />}>
+                    <Th className="w-[122px]" dataChange="assignee-header" filter={<ColumnFilter {...filterProps('assignee')} />}>
                       Assigned to
                     </Th>
                   )}
-                  <Th className="w-[136px]" />
+                  <Th className="w-[110px]" />
                 </tr>
               </thead>
               <tbody>
@@ -458,7 +462,7 @@ export default function TaskQueue() {
                 ))}
                 {pageRows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="h-32 text-center text-[#737373]">
+                    <td colSpan={10} className="h-32 text-center text-[#737373]">
                       No tasks match these filters.{' '}
                       <button onClick={() => update(emptyFilters)} className="underline">
                         Clear filters and search
@@ -546,12 +550,23 @@ function Row({
   const mins = minutesLeft(t.dueAt, now)
   const overdue = slaState(mins) === 'overdue'
   const claimedByMe = t.claimedById === currentUserId
+  const claimer = personById(t.claimedById)
   return (
     <tr
-      onDoubleClick={onOpen}
-      className={cn('h-[42px] border-b border-[#f0f0f0] last:border-b-0', overdue ? 'bg-[#fef2f2] hover:bg-[#fde8e8]' : 'hover:bg-[#fafafa]')}
+      // The whole row opens the task. Buttons in the row (star, Claim, assignee, menu) keep their own
+      // action, and clicks inside menus or pickers (which render elsewhere on the page) are ignored.
+      onClick={(e) => {
+        const target = e.target as HTMLElement
+        if (!e.currentTarget.contains(target)) return
+        if (target.closest('button, a, input, [role=menuitem]')) return
+        onOpen()
+      }}
+      className={cn(
+        'h-[42px] cursor-pointer border-b border-[#f0f0f0] last:border-b-0',
+        overdue ? 'bg-[#fef2f2] hover:bg-[#fde8e8]' : 'hover:bg-[#fafafa]',
+      )}
     >
-      <td className="pl-[12px]">
+      <td className="pl-[6px]">
         <button
           onClick={onStar}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -592,31 +607,35 @@ function Row({
           <TaskStatusChip status={t.status} />
         </Td>
       )}
+      {show('claimed') && (
+        // Claimed by: plain names, as in the production table; "--" when nobody has picked it up
+        <Td>
+          {claimer ? (
+            <span className="block max-w-[110px] truncate" title={claimer.name}>
+              {claimer.short}
+            </span>
+          ) : (
+            <span className="text-[#a3a3a3]">--</span>
+          )}
+        </Td>
+      )}
       {show('assignee') && (
         <td className="px-[10px]">
           <AssigneeCell assigneeId={t.assigneeId} onChange={onAssign} />
         </td>
       )}
-      <td className="pr-[14px] pl-[10px]">
-        <div className="flex items-center justify-end gap-[12px] text-[#262626]">
+      <td className="pr-[12px] pl-[8px]">
+        <div className="flex items-center justify-end gap-[8px] text-[#262626]">
           {t.status !== 'Done' && t.claimedById == null && (
             <button
               onClick={onClaim}
               data-change={firstClaim ? 'claim-button' : undefined}
               onDoubleClick={(e) => e.stopPropagation()}
-              className="flex h-[26px] items-center gap-1.5 rounded-[7px] border border-[#e5e5e5] bg-white px-2.5 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
+              className="flex h-[26px] items-center gap-1 rounded-[7px] border border-[#e5e5e5] bg-white px-2 text-[12px] font-medium shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#f5f5f5]"
             >
               <Hand className="size-3.5" /> Claim
             </button>
           )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button onClick={onOpen} className="rounded p-0.5 hover:bg-black/5" aria-label="Open task">
-                <ExternalLink className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Open task</TooltipContent>
-          </Tooltip>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="rounded p-0.5 hover:bg-black/5" aria-label="More actions">
@@ -781,7 +800,7 @@ function Th({
   dataChange?: string
 }) {
   return (
-    <th className={cn('px-[14px] font-medium whitespace-nowrap', className)} data-change={dataChange}>
+    <th className={cn('px-[12px] font-medium whitespace-nowrap', className)} data-change={dataChange}>
       {filter ? (
         <span className="flex items-center justify-between gap-2">
           {children}
@@ -795,7 +814,7 @@ function Th({
 }
 
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={cn('px-[14px] whitespace-nowrap', className)}>{children}</td>
+  return <td className={cn('px-[12px] whitespace-nowrap', className)}>{children}</td>
 }
 
 function PageBtn({ icon: Icon, disabled, onClick, label }: { icon: LucideIcon; disabled: boolean; onClick: () => void; label: string }) {

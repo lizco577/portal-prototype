@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 export function ValueView({ col, value }: { col: ColKey; value: string }) {
   if (col === 'type') return <TaskTypeChip type={value as TaskType} />
   if (col === 'status') return <TaskStatusChip status={value as TaskStatus} />
-  if (col === 'assignee') {
+  if (col === 'assignee' || col === 'claimed') {
     const p = value === UNASSIGNED ? null : personById(value)
     return (
       <span className="flex items-center gap-[10px]">
@@ -62,9 +62,9 @@ export function FilterList({ col, options, counts, selected, onChange }: ListPro
           <div className="my-[2px] h-px bg-[#e5e5e5]" />
         </>
       )}
-      {col === 'assignee' && <div className="pt-1 pb-[2px] pl-2 text-[11.5px] font-medium text-[#737373]">People</div>}
+      {(col === 'assignee' || col === 'claimed') && <div className="pt-1 pb-[2px] pl-2 text-[11.5px] font-medium text-[#737373]">People</div>}
       {shown.map((v) => (
-        <Fragment key={v} divider={col === 'assignee' && v === UNASSIGNED}>
+        <Fragment key={v} divider={(col === 'assignee' || col === 'claimed') && v === UNASSIGNED}>
           <Row checked={selected.includes(v)} onClick={() => toggle(v)} count={counts.get(v) ?? 0}>
             <ValueView col={col} value={v} />
           </Row>

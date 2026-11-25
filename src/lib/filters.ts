@@ -10,12 +10,13 @@ export const CARD_LABEL: Record<CardKey, string> = {
   inProgress: 'In Progress',
 }
 
-export type ColKey = 'type' | 'room' | 'org' | 'status' | 'assignee'
+export type ColKey = 'type' | 'room' | 'org' | 'status' | 'claimed' | 'assignee'
 export const COL_LABEL: Record<ColKey, string> = {
   type: 'Task type',
   room: 'Room type',
   org: 'Organization',
   status: 'Status',
+  claimed: 'Claimed by',
   assignee: 'Assigned to',
 }
 export const UNASSIGNED = '__none'
@@ -27,7 +28,7 @@ export type Filters = {
   cols: Record<ColKey, string[]>
 }
 
-export const emptyCols = (): Record<ColKey, string[]> => ({ type: [], room: [], org: [], status: [], assignee: [] })
+export const emptyCols = (): Record<ColKey, string[]> => ({ type: [], room: [], org: [], status: [], claimed: [], assignee: [] })
 
 export function cardMatch(card: CardKey, t: Task, now: number) {
   const active = t.status !== 'Done'
@@ -54,6 +55,8 @@ export function colValue(col: ColKey, t: Task): string {
       return t.org
     case 'status':
       return t.status
+    case 'claimed':
+      return t.claimedById ?? UNASSIGNED
     case 'assignee':
       return t.assigneeId ?? UNASSIGNED
   }
@@ -93,6 +96,7 @@ export function colOptions(col: ColKey, tasks: Task[]): string[] {
       return [...ORGANIZATIONS]
     case 'room':
       return [...new Set(tasks.map((t) => t.roomType))].sort()
+    case 'claimed':
     case 'assignee':
       return [...people.map((p) => p.id), UNASSIGNED]
   }
@@ -100,6 +104,7 @@ export function colOptions(col: ColKey, tasks: Task[]): string[] {
 
 export function valueLabel(col: ColKey, v: string) {
   if (col === 'assignee') return v === UNASSIGNED ? 'Unassigned' : personById(v)?.name ?? v
+  if (col === 'claimed') return v === UNASSIGNED ? 'Not claimed' : personById(v)?.name ?? v
   return v
 }
 

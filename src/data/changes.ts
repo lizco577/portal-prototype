@@ -61,9 +61,9 @@ export const TASK_LIST_CHANGES: Change[] = [
   {
     id: 'd7',
     code: 'D7',
-    title: 'Assigned to',
+    title: 'Claimed by and Assigned to',
     kind: 'Changed',
-    detail: 'Claimed by and Assigned to merged. Initials, full name on hover.',
+    detail: 'Two columns: Claimed by shows who picked the task up. Assigned to shows coloured initials, with the full name on hover. Both can be filtered.',
     target: 'assignee-header',
   },
   {
