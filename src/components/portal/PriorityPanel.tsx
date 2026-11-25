@@ -4,7 +4,7 @@ import { ORGANIZATIONS, type Organization, type Task } from '@/data/tasks'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-/** Priority settings: a lead marks whole customers as priority. Their tasks get a filled star. */
+/** The star in the table header: a lead marks whole customers as priority. Their tasks get a filled star. */
 export function PriorityPanel({ tasks }: { tasks: Task[] }) {
   const { priorityOrgs, toggleOrgPriority } = useStore()
   const open = (org: Organization) => tasks.filter((t) => t.org === org && t.status !== 'Done').length
@@ -13,23 +13,16 @@ export function PriorityPanel({ tasks }: { tasks: Task[] }) {
       <PopoverTrigger asChild>
         <button
           data-change="priority-settings"
-          aria-label="Priority settings"
-          className={cn(
-            'flex h-[35px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-[7px] border bg-white pr-[14px] pl-[13px] text-[12.5px] font-medium hover:bg-[#fafafa]',
-            priorityOrgs.length ? 'border-[#a3a3a3]' : 'border-[#e5e5e5]',
-          )}
+          aria-label="Priority customers"
+          title="Priority customers"
+          className="group flex size-7 items-center justify-center rounded-md hover:bg-black/5 data-[state=open]:bg-black/5"
         >
-          <Star className="size-3.5" />
-          <span className="@max-[680px]:hidden">Priority settings</span>
-          {priorityOrgs.length > 0 && <span className="text-[#737373]">{priorityOrgs.length}</span>}
+          <Star className={cn('size-4', priorityOrgs.length ? 'text-[#171717]' : 'text-[#737373] group-hover:text-[#171717]')} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[300px] gap-0 rounded-[10px] p-0 shadow-[0px_6px_16px_0px_rgba(0,0,0,0.1)]">
-        <div className="border-b border-[#e5e5e5] px-4 pt-3.5 pb-3">
+        <div className="border-b border-[#e5e5e5] px-4 py-3">
           <div className="text-[13.5px] font-semibold">Priority customers</div>
-          <div className="mt-0.5 text-[12px] leading-snug text-[#737373]">
-            Every task from a marked customer gets a filled star. Stars on single tasks stay as they are.
-          </div>
         </div>
         <div className="flex flex-col p-[6px]">
           {ORGANIZATIONS.map((org) => {

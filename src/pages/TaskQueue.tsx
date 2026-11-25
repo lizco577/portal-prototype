@@ -285,8 +285,6 @@ export default function TaskQueue() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <PriorityPanel tasks={tasks} />
-
           {/* Wide: chips sit inline, on one line, so the table never jumps while a picker is open */}
           {hasChips && (
             <>
@@ -339,7 +337,9 @@ export default function TaskQueue() {
             <table className="w-full min-w-[1150px] border-collapse text-[12.5px] text-[#262626]">
               <thead>
                 <tr className="h-11 border-b border-[#e5e5e5] bg-[#fafafa] text-left text-[#0a0a0a]">
-                  <th className="w-[34px] pl-[10px]" aria-label="Priority" data-change="star-header" />
+                  <th className="w-[34px] pl-[6px]" aria-label="Priority" data-change="star-header">
+                    <PriorityPanel tasks={tasks} />
+                  </th>
                   {show('sla') && (
                     <Th className="w-[158px] pl-1" dataChange="sla-header">
                       <button className="flex items-center gap-1.5" onClick={() => setSlaAsc((v) => !v)} title="Sort by time left">

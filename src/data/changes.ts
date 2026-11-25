@@ -52,9 +52,9 @@ export const TASK_LIST_CHANGES: Change[] = [
   {
     id: 'd11-settings',
     code: 'D11',
-    title: 'Priority settings',
+    title: 'Priority customers',
     kind: 'New',
-    detail: 'Leads mark a whole customer as priority. All its tasks get a star and move to the top of the list.',
+    detail: 'Click the star in the table header to mark whole customers as priority. All their tasks get a star and move to the top of the list.',
     target: 'priority-settings',
     opens: 'click',
   },
