@@ -483,7 +483,7 @@ function PanelTab({ active, onClick, label, count, dataChange }: { active: boole
     >
       {label}
       {!!count && (
-        <span aria-label={`${count} new`} className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0a0a0a] px-1 text-[10.5px] font-semibold leading-none text-white tabular-nums">
+        <span aria-label={`${count} new`} className="tabular-nums">
           {count}
         </span>
       )}
