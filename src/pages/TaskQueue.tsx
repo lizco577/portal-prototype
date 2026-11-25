@@ -201,6 +201,19 @@ export default function TaskQueue() {
     updateTask(t.id, { claimedById: null, status: t.status === 'In Progress' ? 'Not started' : t.status })
     showToast(`Released ${t.type} · ${t.roomType}`)
   }
+  // Claimed by picker: claiming it myself works like the Claim button (M2 included); someone else claims it
+  // for them; Not claimed releases it.
+  const setClaimer = (t: Task, id: string | null) => {
+    if (id === t.claimedById) return
+    if (!id) return unclaim(t)
+    if (id === currentUserId) return claim(t)
+    updateTask(t.id, {
+      claimedById: id,
+      assigneeId: t.assigneeId ?? id,
+      status: t.status === 'Not started' ? 'In Progress' : t.status,
+    })
+    showToast(`Claimed by ${personById(id)!.name}`)
+  }
   // Reassigning a claimed task hands the claim over too; unassigning releases it.
   const reassign = (t: Task, id: string | null) => {
     const claimed = t.claimedById != null
@@ -423,6 +436,7 @@ export default function TaskQueue() {
                     priority={isPriority(t)}
                     onStar={() => star(t)}
                     onAssign={(id) => reassign(t, id)}
+                    onClaimBy={(id) => setClaimer(t, id)}
                     onOpen={() => open(t)}
                     onDetails={() => setDetailsId(t.id)}
                     onClaim={() => claim(t)}
@@ -498,6 +512,7 @@ function Row({
   priority,
   onStar,
   onAssign,
+  onClaimBy,
   onOpen,
   onDetails,
   onClaim,
@@ -511,6 +526,7 @@ function Row({
   priority: boolean
   onStar: () => void
   onAssign: (id: string | null) => void
+  onClaimBy: (id: string | null) => void
   onOpen: () => void
   onDetails: () => void
   onClaim: () => void
@@ -577,9 +593,9 @@ function Row({
         </Td>
       )}
       {show('claimed') && (
-        // Claimed by: initials like Assigned to, full name on hover; an empty dashed circle when nobody has picked it up
+        // Claimed by: initials like Assigned to, full name on hover; click to claim it for yourself or someone else
         <Td>
-          <ClaimerCell claimedById={t.claimedById} />
+          <ClaimerCell claimedById={t.claimedById} onChange={onClaimBy} />
         </Td>
       )}
       {show('assignee') && (

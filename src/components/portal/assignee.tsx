@@ -47,23 +47,47 @@ export function Avatar({
   )
 }
 
-/** "Claimed by" cell: initials only, full name on hover. Read-only. */
-export function ClaimerCell({ claimedById }: { claimedById: string | null }) {
-  const person = personById(claimedById)
+/** "Assigned to" cell: initials in a white circle, full name on hover (like Jira), click to reassign. */
+export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | null; onChange: (id: string | null) => void }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="inline-flex py-1 pl-1" tabIndex={0}>
-          <Avatar person={person} outline />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top">{person ? `Claimed by ${person.name}` : 'Not claimed yet'}</TooltipContent>
-    </Tooltip>
+    <PersonPicker
+      value={assigneeId}
+      onChange={onChange}
+      meLabel="Assign to me"
+      noneLabel="Unassigned"
+      hint={(p) => (p ? p.name : 'Click to assign')}
+    />
   )
 }
 
-/** "Assigned to" cell: initials in a white circle, full name on hover (like Jira), click to reassign. */
-export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | null; onChange: (id: string | null) => void }) {
+/** "Claimed by" cell: same circle and picker as Assigned to. Picking someone claims the task for them. */
+export function ClaimerCell({ claimedById, onChange }: { claimedById: string | null; onChange: (id: string | null) => void }) {
+  return (
+    <PersonPicker
+      value={claimedById}
+      onChange={onChange}
+      meLabel="Claim it myself"
+      noneLabel="Not claimed"
+      hint={(p) => (p ? `Claimed by ${p.name}` : 'Click to claim')}
+    />
+  )
+}
+
+/** Initials circle that opens a people picker: search, me, everyone else, nobody. */
+function PersonPicker({
+  value,
+  onChange,
+  meLabel,
+  noneLabel,
+  hint,
+}: {
+  value: string | null
+  onChange: (id: string | null) => void
+  meLabel: string
+  noneLabel: string
+  hint: (p: Person | null) => string
+}) {
+  const assigneeId = value
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const person = personById(assigneeId)
@@ -91,7 +115,7 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
             </button>
           </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent side="top">{person ? person.name : 'Click to assign'}</TooltipContent>
+        <TooltipContent side="top">{hint(person)}</TooltipContent>
       </Tooltip>
       {/* Standard dropdown: opens right under the circle, lined up with its right edge so it stays over the table (above it only near the bottom of the screen),
           fixed height with the list scrolling under a sticky search box. */}
@@ -118,7 +142,7 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
         <div className="min-h-0 flex-1 overflow-y-auto p-[6px]">
           <Item onClick={() => pick(me.id)} selected={assigneeId === me.id}>
             <Avatar person={me} outline />
-            <span className="text-[13px]">Assign to me</span>
+            <span className="text-[13px]">{meLabel}</span>
           </Item>
           <div className="my-[4px] h-px bg-[#e5e5e5]" />
           <div className="px-2 pt-1 pb-[4px] text-[11.5px] font-medium text-[#737373]">People</div>
@@ -135,7 +159,7 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
           <div className="my-[4px] h-px bg-[#e5e5e5]" />
           <Item onClick={() => pick(null)} selected={assigneeId == null}>
             <Avatar person={null} addIcon={false} />
-            <span className="text-[13px]">Unassigned</span>
+            <span className="text-[13px]">{noneLabel}</span>
           </Item>
         </div>
       </PopoverContent>
