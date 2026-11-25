@@ -51,8 +51,8 @@ export default function DamageLabeling() {
   const [zoom, setZoom] = useState(1)
   const [redo, setRedo] = useState<Label[]>([])
   const [tab, setTab] = useState<'labels' | 'notes'>('labels')
-  // Bumped to open the Notes tab with the review picker ready
-  const [askReview, setAskReview] = useState(0)
+  // Set by "Not sure? Send for review": opens Notes with the note box focused, once
+  const [askReview, setAskReview] = useState(false)
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const photoRef = useRef<HTMLDivElement>(null)
 
@@ -63,7 +63,7 @@ export default function DamageLabeling() {
   const review = reviewStatus(id)
   const openReviewInNotes = () => {
     setTab('notes')
-    setAskReview((n) => n + 1)
+    setAskReview(true)
   }
 
   const updatePhoto = useCallback(
@@ -384,7 +384,7 @@ export default function DamageLabeling() {
               <NotesPanel
                 notes={taskNotes}
                 askReview={askReview}
-                waitingOn={review && !review.reviewed ? personById(review.reviewerId)?.name : undefined}
+                onAskHandled={() => setAskReview(false)}
                 onSend={(text, reviewerId) => {
                   addNote(id, text, reviewerId)
                   showToast(reviewerId ? `Asked ${personById(reviewerId)?.name} to review` : 'Note added')
@@ -522,26 +522,28 @@ function ReviewBanner({ reviewed, name, onDismiss, onOpen }: { reviewed: boolean
 function NotesPanel({
   notes,
   askReview,
-  waitingOn,
+  onAskHandled,
   onSend,
 }: {
   notes: TaskNote[]
-  askReview: number
-  waitingOn?: string
+  askReview: boolean
+  onAskHandled: () => void
   onSend: (text: string, reviewerId?: string) => void
 }) {
   const [text, setText] = useState('')
   const [reviewerId, setReviewerId] = useState('')
   const [pickOpen, setPickOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
   const boxRef = useRef<HTMLTextAreaElement>(null)
   const reviewer = personById(reviewerId)
+  const expanded = focused || pickOpen || !!text || !!reviewerId
 
-  // "Not sure? Send for review" lands here with the teammate picker open.
+  // "Not sure? Send for review" lands here once, with the note box focused. Opening the tab yourself doesn't.
   useEffect(() => {
     if (!askReview) return
     boxRef.current?.focus()
-    setPickOpen(true)
-  }, [askReview])
+    onAskHandled()
+  }, [askReview, onAskHandled])
 
   const send = () => {
     if (!text.trim()) return
@@ -556,9 +558,7 @@ function NotesPanel({
 
   return (
     <div className="flex flex-col gap-[14px]">
-      {notes.length === 0 ? (
-        <div className="text-[12.5px] text-[#737373]">No notes yet. Add one below, or ask a teammate to review.</div>
-      ) : (
+      {notes.length > 0 && (
         <div className="flex flex-col gap-[14px]">
           {notes.map((n) => {
             const who = personById(n.authorId)
@@ -588,8 +588,14 @@ function NotesPanel({
         </div>
       )}
 
-      {/* Add a note, optionally asking someone to review */}
-      <div className="flex flex-col rounded-[8px] border border-[#e5e5e5] focus-within:border-[#a3a3a3]">
+      {/* Add a note, like a standard comment box: the actions show once you start writing */}
+      <div
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocused(false)
+        }}
+        className="flex flex-col rounded-[8px] border border-[#e5e5e5] focus-within:border-[#a3a3a3]"
+      >
         <textarea
           ref={boxRef}
           value={text}
@@ -597,11 +603,11 @@ function NotesPanel({
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
           }}
-          rows={2}
+          rows={expanded ? 3 : 1}
           placeholder={reviewer ? `What should ${reviewer.name.split(' ')[0]} look at?` : 'Add a note…'}
-          className="resize-none bg-transparent px-[10px] pt-[9px] text-[13px] leading-[1.45] outline-none placeholder:text-[#a3a3a3]"
+          className="resize-none bg-transparent px-[10px] py-[8px] text-[13px] leading-[1.45] outline-none placeholder:text-[#a3a3a3]"
         />
-        <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+        <div className={cn('flex items-center gap-2 px-2 pb-2', !expanded && 'hidden')}>
           <Popover open={pickOpen} onOpenChange={setPickOpen}>
             <PopoverTrigger asChild>
               {reviewer ? (
@@ -653,11 +659,10 @@ function NotesPanel({
             disabled={!text.trim()}
             className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-[7px] bg-[#171717] px-2.5 text-[12px] font-medium whitespace-nowrap text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
           >
-            <Send className="size-3" /> {reviewer ? 'Ask for review' : 'Add note'}
+            {reviewer ? 'Ask for review' : 'Add note'}
           </button>
         </div>
       </div>
-      {waitingOn && <div className="text-[11.5px] text-[#737373]">Waiting on {waitingOn}'s review. The task is In review until they reply.</div>}
     </div>
   )
 }
