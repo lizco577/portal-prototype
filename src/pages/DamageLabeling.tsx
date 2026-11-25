@@ -13,6 +13,7 @@ import {
   Settings,
   Trash2,
   Undo2,
+  UserRoundPlus,
   X,
   ZoomIn,
   ZoomOut,
@@ -23,12 +24,12 @@ import { Avatar } from '@/components/portal/assignee'
 import { ChoiceSelect } from '@/components/portal/ChoiceSelect'
 import { MaterialsDialog } from '@/components/portal/MaterialsDialog'
 import { WHATS_CHANGED_OPEN } from '@/components/portal/ChangesPanel'
-import { SendForReviewDialog } from '@/components/portal/SendForReviewDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DAMAGE_TYPES, SURFACES, type Label, type PhotoState, type Point } from '@/data/labeling'
-import { currentUserId, personById } from '@/data/people'
+import { currentUserId, people, personById } from '@/data/people'
 import { DAMAGE_LABELING_CHANGES } from '@/data/changes'
-import { useStore } from '@/lib/store'
+import { useStore, type TaskNote } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 type Mode = 'draw' | 'select'
@@ -39,7 +40,7 @@ const labelName = (l: Label) =>
 export default function DamageLabeling() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { tasks, photosFor, setPhotos, updateTask, showToast, reviews, sendForReview, dismissReviewBanner, sortedMaterials } = useStore()
+  const { tasks, photosFor, setPhotos, updateTask, showToast, notesFor, addNote, reviewStatus, dismissedBanners, dismissBanner, sortedMaterials } = useStore()
   const task = tasks.find((t) => t.id === id)
   const photos = photosFor(id)
   const [index, setIndex] = useState(0)
@@ -50,14 +51,20 @@ export default function DamageLabeling() {
   const [zoom, setZoom] = useState(1)
   const [redo, setRedo] = useState<Label[]>([])
   const [tab, setTab] = useState<'labels' | 'notes'>('labels')
-  const [reviewOpen, setReviewOpen] = useState(false)
+  // Bumped to open the Notes tab with the review picker ready
+  const [askReview, setAskReview] = useState(0)
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const photoRef = useRef<HTMLDivElement>(null)
 
   const photo = photos[index]
   const doneCount = photos.filter((p) => p.done).length
   const allDone = doneCount === photos.length
-  const review = reviews[id]
+  const taskNotes = notesFor(id)
+  const review = reviewStatus(id)
+  const openReviewInNotes = () => {
+    setTab('notes')
+    setAskReview((n) => n + 1)
+  }
 
   const updatePhoto = useCallback(
     (fn: (p: PhotoState) => PhotoState) => setPhotos(id, (ps) => ps.map((p, i) => (i === index ? fn(p) : p))),
@@ -71,7 +78,7 @@ export default function DamageLabeling() {
     const onOpen = (e: Event) => {
       const what = (e as CustomEvent<string>).detail
       if (what === 'materials') setMaterialsOpen(true)
-      if (what === 'send-for-review') setReviewOpen(true)
+      if (what === 'send-for-review') openReviewInNotes()
     }
     window.addEventListener(WHATS_CHANGED_OPEN, onOpen)
     return () => window.removeEventListener(WHATS_CHANGED_OPEN, onOpen)
@@ -81,7 +88,7 @@ export default function DamageLabeling() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Esc on an open modal, menu or dropdown only closes that, it doesn't stop drawing.
-      if (reviewOpen || materialsOpen) return
+      if (materialsOpen) return
       if (document.querySelector('[role=dialog], [data-slot=popover-content], [data-slot=dropdown-menu-content]')) return
       if (e.key === 'Escape') {
         setDraft([])
@@ -172,8 +179,7 @@ export default function DamageLabeling() {
     if (selected === labelId) setSelected(null)
   }
 
-  const replied = review?.reply
-  const showBanner = review && !review.bannerDismissed && (review.fromId === currentUserId || replied)
+  const showBanner = review && !dismissedBanners.includes(review.requestId)
 
   return (
     <AppShell
@@ -351,11 +357,10 @@ export default function DamageLabeling() {
           <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[14px] pt-4 pb-4">
             {showBanner && review && (
               <ReviewBanner
-                replied={!!replied}
-                toName={personById(review.toId)?.name ?? ''}
-                reply={replied?.text}
-                onDismiss={() => dismissReviewBanner(id)}
-                onOpenNotes={() => setTab('notes')}
+                reviewed={review.reviewed}
+                name={personById(review.reviewerId)?.name ?? ''}
+                onDismiss={() => dismissBanner(review.requestId)}
+                onOpen={() => setTab('notes')}
               />
             )}
             <div className="flex flex-col gap-1 leading-normal">
@@ -369,16 +374,22 @@ export default function DamageLabeling() {
               </div>
             </div>
 
-            {review && (
-              <div className="flex gap-5 border-b border-[#e5e5e5]">
-                <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
-                {/* Notes counts the notes in the thread: yours, plus the reply once it arrives */}
-                <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Notes" count={1 + (replied ? 1 : 0)} />
-              </div>
-            )}
+            {/* Notes is always here; it's also where you ask a teammate to review */}
+            <div className="flex gap-5 border-b border-[#e5e5e5]">
+              <PanelTab active={tab === 'labels'} onClick={() => setTab('labels')} label="Labels" />
+              <PanelTab active={tab === 'notes'} onClick={() => setTab('notes')} label="Notes" count={taskNotes.length || undefined} />
+            </div>
 
-            {tab === 'notes' && review ? (
-              <NotesThread review={review} taskId={id} />
+            {tab === 'notes' ? (
+              <NotesPanel
+                notes={taskNotes}
+                askReview={askReview}
+                waitingOn={review && !review.reviewed ? personById(review.reviewerId)?.name : undefined}
+                onSend={(text, reviewerId) => {
+                  addNote(id, text, reviewerId)
+                  showToast(reviewerId ? `Asked ${personById(reviewerId)?.name} to review` : 'Note added')
+                }}
+              />
             ) : photo.labels.length === 0 ? (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-[12.5px] text-[#262626]">
@@ -428,14 +439,14 @@ export default function DamageLabeling() {
                           <Question label="What is the type of damage?">
                             <ChoiceSelect value={l.damage} options={DAMAGE_TYPES} onChange={(v) => updateLabel(l.id, { damage: v })} />
                           </Question>
-                          {review && !replied ? (
+                          {review && !review.reviewed ? (
                             <div className="flex items-center gap-1.5 text-[12px] text-[#737373]">
-                              <Clock className="size-3.5" /> Waiting on {personById(review.toId)?.name}'s review
+                              <Clock className="size-3.5" /> Waiting on {personById(review.reviewerId)?.name}'s review
                             </div>
                           ) : (
                             <button
                               data-change="send-for-review"
-                              onClick={() => setReviewOpen(true)}
+                              onClick={openReviewInNotes}
                               className="flex items-center gap-1.5 self-start text-[12px] text-[#525252] underline-offset-2 hover:text-[#0a0a0a] hover:underline"
                             >
                               <Send className="size-3" /> Not sure? Send for review
@@ -479,96 +490,174 @@ export default function DamageLabeling() {
         </div>
       </div>
 
-      <SendForReviewDialog
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
-        onSend={(toId, note) => {
-          sendForReview(id, toId, note, index)
-          setReviewOpen(false)
-          showToast(`Sent to ${personById(toId)?.name} for review`)
-        }}
-      />
       <MaterialsDialog open={materialsOpen} onOpenChange={setMaterialsOpen} />
     </AppShell>
   )
 }
 
-function ReviewBanner({
-  replied,
-  toName,
-  reply,
-  onDismiss,
-  onOpenNotes,
-}: {
-  replied: boolean
-  toName: string
-  reply?: string
-  onDismiss: () => void
-  onOpenNotes: () => void
-}) {
-  if (!replied)
-    return (
-      <div className="flex gap-[10px] rounded-[10px] border border-[#e5e5e5] bg-[#fafafa] p-3" data-testid="review-banner">
-        <Clock className="mt-px size-[15px] text-[#525252]" />
-        <div className="flex-1">
-          <div className="text-[13px] font-semibold">Sent to {toName} for review</div>
-          <div className="text-[12px] text-[#525252]">Their reply will show here. The task is In review until then.</div>
-        </div>
-      </div>
-    )
+/** One line: review requested, then reviewed. The conversation itself lives in Notes. */
+function ReviewBanner({ reviewed, name, onDismiss, onOpen }: { reviewed: boolean; name: string; onDismiss: () => void; onOpen: () => void }) {
   return (
-    <div className="flex gap-[10px] rounded-[10px] border border-[#bbf7d0] bg-[#f0fdf4] p-3" data-testid="review-banner">
-      <CircleCheck className="mt-px size-[15px] text-[#15803d]" />
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-semibold">Reviewed by {toName}</div>
-        <div className="mt-1 text-[13px] leading-[1.45] text-[#262626]">“{reply}”</div>
-        <button onClick={onOpenNotes} className="mt-1 text-[12px] text-[#525252] underline-offset-2 hover:underline">
-          See the full note history
-        </button>
-      </div>
-      <button onClick={onDismiss} aria-label="Dismiss" className="self-start rounded p-0.5 text-[#525252] hover:bg-black/5">
-        <X className="size-3.5" />
+    <div
+      data-testid="review-banner"
+      className={cn(
+        'flex items-center gap-2 rounded-[8px] border px-3 py-2 text-[12.5px]',
+        reviewed ? 'border-[#bbf7d0] bg-[#f0fdf4]' : 'border-[#e5e5e5] bg-[#fafafa]',
+      )}
+    >
+      {reviewed ? <CircleCheck className="size-3.5 shrink-0 text-[#15803d]" /> : <Clock className="size-3.5 shrink-0 text-[#525252]" />}
+      <button onClick={onOpen} className="min-w-0 flex-1 truncate text-left font-medium hover:underline">
+        {reviewed ? `Reviewed by ${name}` : `Review requested from ${name}`}
       </button>
-    </div>
-  )
-}
-
-function NotesThread({ review }: { review: NonNullable<ReturnType<typeof useStore>['reviews'][string]>; taskId: string }) {
-  const from = personById(review.fromId)
-  const to = personById(review.toId)
-  const ago = (t: number) => {
-    const m = Math.max(0, Math.round((Date.now() - t) / 60000))
-    return m < 1 ? 'just now' : `${m} min ago`
-  }
-  return (
-    <div className="flex flex-col gap-[14px]">
-      <div className="flex items-center gap-2 text-[12px] text-[#737373]">
-        <Send className="size-[13px]" /> {from?.name} sent this for review to {to?.name} · {ago(review.sentAt)}
-      </div>
-      <Note person={from} when={ago(review.sentAt)} text={review.note} />
-      {review.reply && (
-        <>
-          <Note person={to} when={ago(review.reply.at)} text={review.reply.text} />
-          <div className="flex items-center gap-2 text-[12px] text-[#737373]">
-            <CircleCheck className="size-[13px]" /> {to?.name} marked this reviewed · {ago(review.reply.at)}
-          </div>
-        </>
+      {reviewed && (
+        <button onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 text-[#525252] hover:bg-black/5">
+          <X className="size-3.5" />
+        </button>
       )}
     </div>
   )
 }
 
-function Note({ person, when, text }: { person: ReturnType<typeof personById>; when: string; text: string }) {
+/** Notes for the task: a simple list, and a box to add one. A note can ask a teammate to review. */
+function NotesPanel({
+  notes,
+  askReview,
+  waitingOn,
+  onSend,
+}: {
+  notes: TaskNote[]
+  askReview: number
+  waitingOn?: string
+  onSend: (text: string, reviewerId?: string) => void
+}) {
+  const [text, setText] = useState('')
+  const [reviewerId, setReviewerId] = useState('')
+  const [pickOpen, setPickOpen] = useState(false)
+  const boxRef = useRef<HTMLTextAreaElement>(null)
+  const reviewer = personById(reviewerId)
+
+  // "Not sure? Send for review" lands here with the teammate picker open.
+  useEffect(() => {
+    if (!askReview) return
+    boxRef.current?.focus()
+    setPickOpen(true)
+  }, [askReview])
+
+  const send = () => {
+    if (!text.trim()) return
+    onSend(text.trim(), reviewerId || undefined)
+    setText('')
+    setReviewerId('')
+  }
+  const ago = (t: number) => {
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000))
+    return m < 1 ? 'just now' : `${m} min ago`
+  }
+
   return (
-    <div className="flex gap-[10px]">
-      <Avatar person={person} />
-      <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
-        <div className="flex gap-1.5">
-          <span className="text-[12.5px] font-semibold">{person?.name}</span>
-          <span className="text-[12px] text-[#a3a3a3]">{when}</span>
+    <div className="flex flex-col gap-[14px]">
+      {notes.length === 0 ? (
+        <div className="text-[12.5px] text-[#737373]">No notes yet. Add one below, or ask a teammate to review.</div>
+      ) : (
+        <div className="flex flex-col gap-[14px]">
+          {notes.map((n) => {
+            const who = personById(n.authorId)
+            return (
+              <div key={n.id} className="flex gap-[10px]">
+                <Avatar person={who} />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[12.5px] font-semibold">{who?.name}</span>
+                    <span className="text-[11.5px] text-[#a3a3a3]">{ago(n.at)}</span>
+                  </div>
+                  <p className="text-[13px] leading-[1.45] text-[#262626]">{n.text}</p>
+                  {n.reviewRequestTo && (
+                    <span className="self-start rounded-[5px] bg-[#f5f5f5] px-1.5 py-0.5 text-[11.5px] text-[#525252]">
+                      Asked {personById(n.reviewRequestTo)?.name} to review
+                    </span>
+                  )}
+                  {n.reviewReplyTo && (
+                    <span className="flex items-center gap-1 self-start rounded-[5px] bg-[#f0fdf4] px-1.5 py-0.5 text-[11.5px] text-[#15803d]">
+                      <CircleCheck className="size-3" /> Reviewed
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
-        <p className="text-[13px] leading-[1.45] text-[#262626]">{text}</p>
+      )}
+
+      {/* Add a note, optionally asking someone to review */}
+      <div className="flex flex-col rounded-[8px] border border-[#e5e5e5] focus-within:border-[#a3a3a3]">
+        <textarea
+          ref={boxRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
+          }}
+          rows={2}
+          placeholder={reviewer ? `What should ${reviewer.name.split(' ')[0]} look at?` : 'Add a note…'}
+          className="resize-none bg-transparent px-[10px] pt-[9px] text-[13px] leading-[1.45] outline-none placeholder:text-[#a3a3a3]"
+        />
+        <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+          <Popover open={pickOpen} onOpenChange={setPickOpen}>
+            <PopoverTrigger asChild>
+              {reviewer ? (
+                <button className="flex min-w-0 items-center gap-1.5 rounded-[6px] bg-[#f5f5f5] py-1 pr-1.5 pl-1 text-[12px] font-medium whitespace-nowrap">
+                  <Avatar person={reviewer} size={18} />
+                  <span className="truncate">Review: {reviewer.name.split(' ')[0]}</span>
+                  <span
+                    role="button"
+                    aria-label="Don't ask for review"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setReviewerId('')
+                    }}
+                    className="rounded p-0.5 hover:bg-black/10"
+                  >
+                    <X className="size-3" />
+                  </span>
+                </button>
+              ) : (
+                <button className="flex items-center gap-1.5 rounded-[6px] px-1.5 py-1 text-[12px] font-medium whitespace-nowrap text-[#525252] hover:bg-[#f5f5f5]">
+                  <UserRoundPlus className="size-3.5" /> Ask for review
+                </button>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[240px] gap-0 p-[6px]">
+              <div className="px-2 pt-1 pb-1.5 text-[11.5px] font-medium text-[#737373]">Ask a teammate to review</div>
+              {people
+                .filter((p) => p.id !== currentUserId)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setReviewerId(p.id)
+                      setPickOpen(false)
+                      boxRef.current?.focus()
+                    }}
+                    className={cn('flex w-full items-center gap-[10px] rounded-md px-2 py-[6px] text-left text-[13px] hover:bg-[#f5f5f5]', p.id === reviewerId && 'bg-[#f5f5f5]')}
+                  >
+                    <Avatar person={p} />
+                    <span className="flex-1">{p.name}</span>
+                    {p.id === reviewerId && <Check className="size-3.5" />}
+                  </button>
+                ))}
+            </PopoverContent>
+          </Popover>
+          <div className="flex-1" />
+          <button
+            onClick={send}
+            disabled={!text.trim()}
+            className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-[7px] bg-[#171717] px-2.5 text-[12px] font-medium whitespace-nowrap text-white disabled:bg-[#e5e5e5] disabled:text-[#a3a3a3]"
+          >
+            <Send className="size-3" /> {reviewer ? 'Ask for review' : 'Add note'}
+          </button>
+        </div>
       </div>
+      {waitingOn && <div className="text-[11.5px] text-[#737373]">Waiting on {waitingOn}'s review. The task is In review until they reply.</div>}
     </div>
   )
 }

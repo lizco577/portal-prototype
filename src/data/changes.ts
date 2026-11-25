@@ -104,9 +104,9 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
   {
     id: 'l6',
     code: 'L6',
-    title: 'Send for review',
+    title: 'Notes and review',
     kind: 'New',
-    detail: 'Send the task to a teammate with a note. Their reply shows at the top of the labels panel.',
+    detail: 'Notes are always on the task. Add one and pick a teammate to ask them to review: the task goes In review, and a one-line banner says when it has been reviewed. "Not sure? Send for review" jumps here.',
     target: 'send-for-review',
     opens: 'send-for-review',
   },
