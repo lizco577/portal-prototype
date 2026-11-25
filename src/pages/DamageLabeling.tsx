@@ -78,7 +78,7 @@ export default function DamageLabeling() {
     return () => window.removeEventListener(WHATS_CHANGED_OPEN, onOpen)
   }, [])
 
-  // Esc stops drawing. Enter closes the shape you're drawing.
+  // Esc stops drawing, Space starts it. Enter closes the shape you're drawing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Esc on an open modal, menu or dropdown only closes that, it doesn't stop drawing.
@@ -87,6 +87,13 @@ export default function DamageLabeling() {
       if (e.key === 'Escape') {
         setDraft([])
         setMode('select')
+      }
+      // L4: Space starts a new shape, the same as clicking the photo. Not while typing in a field.
+      const el = e.target as HTMLElement | null
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      if (e.key === ' ' && !typing) {
+        e.preventDefault()
+        setMode('draw')
       }
       if (e.key === 'Enter' && draft.length >= 3) closeShape()
     }
@@ -230,7 +237,7 @@ export default function DamageLabeling() {
                 )}
               >
                 {mode === 'draw' ? (
-                  'Click on the photo to draw · Esc to stop drawing'
+                  'Click on the photo or press Space to draw · Esc to stop drawing'
                 ) : (
                   <span>
                     Drawing is off ·{' '}

@@ -1,7 +1,7 @@
 export const TASK_TYPES = ['Damage Labeling', 'ImageQA', 'Modelling', 'Remodel', 'QA'] as const
 export type TaskType = (typeof TASK_TYPES)[number]
 
-export const TASK_STATUSES = ['Not started', 'In Progress', 'In review', 'Done'] as const
+export const TASK_STATUSES = ['Not started', 'In Progress', 'In review', 'Ready for Review', 'Done'] as const
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export const ORGANIZATIONS = ['USAA', 'State Farm', 'Allstate', 'Liberty Mutual', 'hostalabs'] as const
@@ -25,6 +25,12 @@ export type Task = {
   claimOpened: string
   /** manual star: true/false overrides the entity priority, null follows it */
   star: boolean | null
+  /** F4: the room came back from a remodel; the note the claim specialist sent with the request */
+  remodelNote: string | null
+  /** Q2: Image QA task whose point cloud is broken by sideways photos */
+  sideways: boolean
+  /** F5: a reviewer signed off a Ready for Review task */
+  reviewerSignedOff: boolean
 }
 
 // Small seeded generator so IDs stay the same on every load.
@@ -65,7 +71,7 @@ const seeds: Seed[] = [
   ['ImageQA', 'dining', 'Allstate', 'Not started', 190, null, 'Nov 23, 2026'],
   ['Modelling', 'garage', 'Liberty Mutual', 'In review', 260, 'lmoreno', 'Nov 22, 2026', 'rpatel'],
   ['Damage Labeling', 'bedroom', 'USAA', 'Not started', 330, 'ecohen', 'Nov 23, 2026'],
-  ['QA', 'living', 'State Farm', 'Not started', 480, null, 'Nov 23, 2026'],
+  ['QA', 'living', 'State Farm', 'Ready for Review', 480, 'aatencio', 'Nov 23, 2026'],
   ['Remodel', 'bedroom', 'USAA', 'In Progress', 620, 'rpatel', 'Nov 21, 2026'],
   ['ImageQA', 'kitchen', 'hostalabs', 'Not started', 900, null, 'Nov 24, 2026'],
   ['Modelling', 'dining', 'Allstate', 'Not started', 1320, null, 'Nov 24, 2026'],
@@ -90,8 +96,28 @@ const fixedRoomIds = [
   'eb29656e-e140-4bdc-bff0-462e465136ad',
 ]
 
+// F4: rooms that came back to Final QA (or are in Remodel) after a claim specialist asked for a remodel.
+const REMODEL_NOTES: Record<number, string> = {
+  1: 'The door on the north wall is missing in the model, and the window is on the wrong wall. Photos 3 and 4 show both.',
+  3: 'Ceiling height looks like 8 ft in the model, but the photos show a vaulted ceiling. Please remodel the ceiling.',
+  8: 'Door Error: the bathroom door opens into the hallway, not into the room.',
+  15: 'Closet is missing from the model. It shows in the overview photos on the east wall.',
+  22: 'Window Error: the bedroom has two windows on the south wall, the model shows one.',
+  28: 'The fireplace is modeled as a wall. Please add it as an object so the hearth line items work.',
+}
+
+// Q2: Image QA tasks whose point cloud is unusable because some photos were taken sideways.
+const SIDEWAYS = new Set([12, 23])
+
+// M2: [modelling task, image QA task] that belong to the same room.
+const SAME_ROOM: [number, number][] = [
+  [7, 12],
+  [24, 18],
+  [4, 5],
+]
+
 export function buildTasks(now: number): Task[] {
-  return seeds.map(([type, roomType, org, status, mins, assigneeId, claimOpened, sentById], i) => ({
+  const tasks: Task[] = seeds.map(([type, roomType, org, status, mins, assigneeId, claimOpened, sentById], i) => ({
     id: uuid(),
     type,
     roomType,
@@ -105,5 +131,16 @@ export function buildTasks(now: number): Task[] {
     claimedById: status === 'Not started' ? null : (sentById ?? assigneeId),
     claimOpened,
     star: null,
+    remodelNote: REMODEL_NOTES[i] ?? null,
+    sideways: SIDEWAYS.has(i),
+    reviewerSignedOff: false,
   }))
+  for (const [m, q] of SAME_ROOM) {
+    const { roomId, claimId, org, claimOpened } = tasks[m]
+    tasks[q] = { ...tasks[q], roomId, claimId, org, claimOpened }
+  }
+  return tasks
 }
+
+/** The Image QA task for the same room as this task, if there is one. */
+export const imageQaFor = (tasks: Task[], t: Task) => tasks.find((x) => x.type === 'ImageQA' && x.roomId === t.roomId && x.id !== t.id) ?? null

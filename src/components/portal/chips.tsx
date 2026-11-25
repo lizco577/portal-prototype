@@ -6,6 +6,7 @@ import {
   Eye,
   FileCheck,
   Image,
+  UserCheck,
   RefreshCw,
   ScanLine,
   type LucideIcon,
@@ -42,6 +43,7 @@ const STATUS_STYLE: Record<TaskStatus, { bg: string; border: string; text: strin
   'Not started': { bg: '#f5f5f5', border: '#e5e5e5', text: '#525252', icon: CircleDashed },
   'In Progress': { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', icon: Clock },
   'In review': { bg: '#ffffff', border: '#a3a3a3', text: '#262626', icon: Eye },
+  'Ready for Review': { bg: '#f0fdfa', border: '#99f6e4', text: '#0f766e', icon: UserCheck },
   Done: { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', icon: CircleCheck },
 }
 

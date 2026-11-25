@@ -85,11 +85,22 @@ const CARDS: { key: CardKey; icon: LucideIcon; hint: string; danger?: boolean }[
 const emptyFilters = (): Filters => ({ card: null, query: '', priority: false, cols: emptyCols() })
 
 /** Task types that open their own task page. */
-export const taskPath = (t: Task) =>
-  t.type === 'Damage Labeling' ? `/tasks/${t.id}/draw` : t.type === 'ImageQA' ? `/tasks/${t.id}/image-qa` : null
+export const taskPath = (t: Task): string | null => {
+  switch (t.type) {
+    case 'Damage Labeling':
+      return `/tasks/${t.id}/draw`
+    case 'ImageQA':
+      return `/tasks/${t.id}/image-qa`
+    case 'QA':
+      return `/tasks/${t.id}/final-qa`
+    case 'Modelling':
+    case 'Remodel':
+      return `/tasks/${t.id}/modeling`
+  }
+}
 
 export default function TaskQueue() {
-  const { tasks, now, updateTask, isPriority, toggleStar, showToast } = useStore()
+  const { tasks, now, updateTask, claimTask, isPriority, toggleStar, showToast } = useStore()
   const navigate = useNavigate()
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [slaAsc, setSlaAsc] = useState(true)
@@ -183,8 +194,8 @@ export default function TaskQueue() {
   const typeMenu = <TaskTypeMenuItems selected={typeSel} counts={facets.type} total={typeTotal} onSelect={setType} />
 
   const claim = (t: Task) => {
-    updateTask(t.id, { claimedById: currentUserId, assigneeId: currentUserId, status: t.status === 'Not started' ? 'In Progress' : t.status })
-    showToast(`Claimed ${t.type} · ${t.roomType}`)
+    const { alsoClaimed } = claimTask(t.id)
+    showToast(alsoClaimed ? `Claimed ${t.type} · ${t.roomType}, and its Image QA` : `Claimed ${t.type} · ${t.roomType}`)
   }
   const unclaim = (t: Task) => {
     updateTask(t.id, { claimedById: null, status: t.status === 'In Progress' ? 'Not started' : t.status })

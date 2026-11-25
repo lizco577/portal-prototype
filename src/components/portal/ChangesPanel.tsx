@@ -20,6 +20,7 @@ export function ChangesPanel({ changes, top }: { changes: Change[]; top?: ReactN
       {/* Same 64px height as the page header, so the two bottom lines meet */}
       <div className="flex h-16 shrink-0 items-center border-b border-[#e5e5e5] px-4 text-[14px] font-semibold">What's changed · {changes.length}</div>
       {top}
+      {changes.length === 0 && <p className="px-4 py-3 text-[12.5px] leading-[1.5] text-[#737373]">No changes on this page. This is today's portal.</p>}
       <ul className="flex flex-col" onMouseLeave={() => setActiveId(null)}>
         {changes.map((c) => {
           const on = c.id === activeId

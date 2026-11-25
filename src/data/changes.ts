@@ -103,6 +103,14 @@ export const DAMAGE_LABELING_CHANGES: Change[] = [
     opens: 'click',
   },
   {
+    id: 'l4',
+    code: 'L4',
+    title: 'Space to draw',
+    kind: 'New',
+    detail: 'Press Space to start a new shape, the same as clicking the photo. The hint on the photo says so.',
+    target: 'draw-hint',
+  },
+  {
     id: 'l1',
     code: 'L1',
     title: 'Materials',
@@ -121,5 +129,80 @@ export const IMAGE_QA_CHANGES: Change[] = [
     kind: 'New',
     detail: 'Photos passed by automation show an icon. Confidence shows on hover.',
     target: 'auto-pass',
+  },
+  {
+    id: 'q2',
+    code: 'Q2',
+    title: 'Rotate and regenerate',
+    kind: 'New',
+    detail: 'Sideways photos are flagged, with a note on why the point cloud is unusable. Rotate all flagged photos at once or one at a time, then Regenerate point cloud. The room comes back to Image QA with the new cloud. Open the bedroom or kitchen Image QA task to see it.',
+    target: 'sideways-banner',
+  },
+]
+
+export const FINAL_QA_CHANGES: Change[] = [
+  {
+    id: 'd9',
+    code: 'D9',
+    title: 'Modeler-only buttons',
+    kind: 'Changed',
+    detail: 'On the Modelers tab, claim specialists no longer see Download Instructions or Download Modeling Files. Modelers keep all five buttons. Use Viewing as at the top to compare.',
+    target: 'modelers-tab',
+    opens: 'click',
+  },
+  {
+    id: 'f4',
+    code: 'F4',
+    title: 'Remodel history',
+    kind: 'New',
+    detail: 'A room back from a remodel shows a Remodeled tag in the header and the note the claim specialist sent with the request. Open the dining QA task to see it.',
+    target: 'remodel-note',
+  },
+  {
+    id: 'f5',
+    code: 'F5',
+    title: 'Ready for Review',
+    kind: 'New',
+    detail: 'Set a task to Ready for Review instead of approving it. Approve then reads Waiting on reviewer until a reviewer signs off. The status shows in the task list and the Status filter. Use Reviewer above to sign off.',
+    target: 'ready-for-review',
+  },
+  {
+    id: 'f2',
+    code: 'F2',
+    title: 'Rule sorting',
+    kind: 'New',
+    detail: 'When adding line items, the rule list sorts A to Z or Most used.',
+    target: 'add-line-items',
+    opens: 'click',
+  },
+]
+
+export const MODELING_CHANGES: Change[] = [
+  {
+    id: 'm3',
+    code: 'M3',
+    title: 'Room ID and Claim ID',
+    kind: 'New',
+    detail: 'Room ID and Claim ID sit right under Task ID in Task Information, each with a copy button.',
+    target: 'room-claim-ids',
+  },
+  {
+    id: 'm2',
+    code: 'M2',
+    title: 'Claim with Image QA',
+    kind: 'New',
+    detail: "Claiming a Modelling task also claims the Image QA task for the same room, so the room stays with one modeler. Claim the bedroom, dining or living Modelling task in the list and its Image QA row shows you under Claimed by.",
+    target: 'claim-modeling',
+  },
+]
+
+export const RULE_SETS_CHANGES: Change[] = [
+  {
+    id: 'r1',
+    code: 'R1',
+    title: 'Apply to carriers',
+    kind: 'New',
+    detail: 'Saving a rule asks where it applies: This carrier, All carriers, or Choose carriers. One change can reach every carrier rule set in one step. Open a ruleset, then a rule, to see it.',
+    target: 'apply-to',
   },
 ]

@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { buildTasks, type Organization, type Task } from '@/data/tasks'
+import { buildTasks, imageQaFor, type Organization, type Task } from '@/data/tasks'
 import { buildPhotos, INITIAL_MATERIALS, type Material, type PhotoState } from '@/data/labeling'
 import { buildReviews, cannedReview, EMPTY_REVIEW, reviewStage, type Attachment, type Review, type ReviewStage } from '@/data/reviews'
 import { currentUserId } from '@/data/people'
+import { RULES, RULESETS, type Rule, type Ruleset } from '@/data/rules'
 
 export type MaterialSort = 'az' | 'used' | 'custom'
 
@@ -10,6 +11,8 @@ type Store = {
   now: number
   tasks: Task[]
   updateTask: (id: string, patch: Partial<Task>) => void
+  /** Claim a task for the signed-in user. M2: claiming a Modelling task also claims its room's Image QA. */
+  claimTask: (id: string) => { alsoClaimed: Task | null }
 
   // Priority
   priorityOrgs: Organization[]
@@ -35,6 +38,12 @@ type Store = {
   setMaterialSort: (s: MaterialSort) => void
   sortedMaterials: Material[]
 
+  // Rule Sets
+  rulesets: Ruleset[]
+  setRulesets: (fn: (r: Ruleset[]) => Ruleset[]) => void
+  rules: Rule[]
+  addRule: (rule: Rule) => void
+
   toast: string | null
   showToast: (msg: string) => void
 
@@ -54,6 +63,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<Record<string, Review>>(() => buildReviews(tasks, start))
   const [materials, setMaterialsState] = useState<Material[]>(INITIAL_MATERIALS)
   const [materialSort, setMaterialSort] = useState<MaterialSort>('az')
+  const [rulesets, setRulesetsState] = useState<Ruleset[]>(RULESETS)
+  const [rules, setRules] = useState<Rule[]>(RULES)
   const [toast, setToast] = useState<string | null>(null)
   const [changesOpen, setChangesOpen] = useState(true)
   const toastTimer = useRef<number | undefined>(undefined)
@@ -73,6 +84,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateTask = useCallback(
     (id: string, patch: Partial<Task>) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t))),
     [],
+  )
+
+  const claimTask = useCallback(
+    (id: string) => {
+      const t = tasks.find((x) => x.id === id)
+      if (!t) return { alsoClaimed: null }
+      const iqa = t.type === 'Modelling' ? imageQaFor(tasks, t) : null
+      const also = iqa && iqa.status !== 'Done' ? iqa : null
+      const claim = (x: Task): Task => ({
+        ...x,
+        claimedById: currentUserId,
+        assigneeId: currentUserId,
+        status: x.status === 'Not started' ? 'In Progress' : x.status,
+      })
+      setTasks((ts) => ts.map((x) => (x.id === id || x.id === also?.id ? claim(x) : x)))
+      return { alsoClaimed: also }
+    },
+    [tasks],
   )
 
   const isPriority = useCallback((t: Task) => t.star ?? priorityOrgs.includes(t.org), [priorityOrgs])
@@ -152,6 +181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       now,
       tasks,
       updateTask,
+      claimTask,
       priorityOrgs,
       toggleOrgPriority: (org) => setPriorityOrgs((o) => (o.includes(org) ? o.filter((x) => x !== org) : [...o, org])),
       isPriority,
@@ -179,12 +209,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       materialSort,
       setMaterialSort,
       sortedMaterials,
+      rulesets,
+      setRulesets: setRulesetsState,
+      rules,
+      addRule: (rule) => setRules((rs) => (rs.some((r) => r.id === rule.id) ? rs : [...rs, rule])),
       toast,
       showToast,
       changesOpen,
       setChangesOpen,
     }),
-    [now, tasks, updateTask, priorityOrgs, isPriority, photos, reviews, patchReview, setReviewer, sendReviewComment, materials, materialSort, sortedMaterials, toast, showToast, changesOpen],
+    [now, tasks, updateTask, claimTask, priorityOrgs, isPriority, photos, reviews, patchReview, setReviewer, sendReviewComment, materials, materialSort, sortedMaterials, rulesets, rules, toast, showToast, changesOpen],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

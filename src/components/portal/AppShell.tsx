@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   Activity,
   Bell,
@@ -48,7 +48,7 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false)
   const [tz, setTz] = useState('MST')
   const { toast, changesOpen, setChangesOpen } = useStore()
-  const hasChanges = !!changes && changes.length > 0
+  const hasChanges = !!changes
   return (
     <div className="flex h-screen min-w-[800px] bg-white text-[#0a0a0a]">
       {!collapsed && <Sidebar />}
@@ -164,6 +164,16 @@ export function AppShell({
 
 function Sidebar() {
   const me = personById(currentUserId)!
+  const { pathname } = useLocation()
+  const section = pathname.startsWith('/org')
+    ? 'org'
+    : pathname.startsWith('/claims')
+      ? 'claims'
+      : pathname.startsWith('/pipeline')
+        ? 'pipeline'
+        : pathname.startsWith('/rule-sets')
+          ? 'rules'
+          : 'tasks'
   return (
     <aside className="flex w-[245px] shrink-0 flex-col gap-6 border-r border-[#e5e5e5] bg-[#fafafa] px-2 py-[18px]">
       <div className="flex items-center gap-[10px] pl-2">
@@ -176,13 +186,13 @@ function Sidebar() {
         </div>
       </div>
       <NavGroup label="Admin">
-        <NavItem icon={ListTodo} label="Tasks Queue" to="/" active />
-        <NavItem icon={Activity} label="Claims" />
-        <NavItem icon={Workflow} label="Pipeline" />
-        <NavItem icon={FileText} label="Rule Sets" />
+        <NavItem icon={ListTodo} label="Tasks Queue" to="/" active={section === 'tasks'} />
+        <NavItem icon={Activity} label="Claims" to="/claims" active={section === 'claims'} />
+        <NavItem icon={Workflow} label="Pipeline" to="/pipeline" active={section === 'pipeline'} />
+        <NavItem icon={FileText} label="Rule Sets" to="/rule-sets" active={section === 'rules'} />
       </NavGroup>
       <NavGroup label="Entity">
-        <NavItem icon={Activity} label="Claims" />
+        <NavItem icon={Activity} label="Claims" to="/org/claims" active={section === 'org'} />
       </NavGroup>
       <div className="flex-1" />
       <DropdownMenu>
