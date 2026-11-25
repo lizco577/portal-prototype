@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Search, UserPlus } from 'lucide-react'
+import { Check, Plus, Search } from 'lucide-react'
 import { currentUserId, initials, people, personById, type Person } from '@/data/people'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Initials in a circle. `outline` is the task list style: white with a grey border and dark initials.
- * With no person it's an empty dashed circle; `addIcon` puts the add-person icon in it.
+ * With no person it's an empty dashed circle; `addIcon` puts a plus in it.
  */
 export function Avatar({
   person,
@@ -32,7 +32,7 @@ export function Avatar({
         )}
         style={{ width: size, height: size }}
       >
-        {addIcon && <UserPlus className="size-3" />}
+        {addIcon && <Plus className="size-3" strokeWidth={2} />}
       </span>
     )
   return (
@@ -134,7 +134,7 @@ export function AssigneeCell({ assigneeId, onChange }: { assigneeId: string | nu
           {list.length === 0 && <div className="px-2 py-2 text-[12.5px] text-[#737373]">No one matches.</div>}
           <div className="my-[4px] h-px bg-[#e5e5e5]" />
           <Item onClick={() => pick(null)} selected={assigneeId == null}>
-            <Avatar person={null} />
+            <Avatar person={null} addIcon={false} />
             <span className="text-[13px]">Unassigned</span>
           </Item>
         </div>
